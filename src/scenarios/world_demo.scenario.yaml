@@ -1,0 +1,24 @@
+meta:
+  title: "الملاحة العالمية الحقيقية: البحر للدورية واليابسة للدبابة"
+  map: world_live
+
+timeline:
+  - at: 0s
+    camera: { focus: red_sea, zoom: 2.2, duration: 1.2s }
+    caption: { text: "١. خريطة العالم الحية: الدبابات تسير على اليابسة فقط والسفن تبحر في البحار" }
+    spawn:
+      - { id: fleet_red, actor: naval_corvette, at: arabian_sea, faction: blue }
+      - { id: armor_1, actor: heavy_tank, at: riyadh, faction: blue }
+
+  - at: 1.5s
+    move: { entity: fleet_red, to: mediterranean }
+    callout: { id: c_ship, target: fleet_red, text: "إبحار عبر باب المندب والسويس", color: "#38bdf8", duration: 9s }
+
+  - at: 2.0s
+    move: { entity: armor_1, to: cairo }
+    callout: { id: c_tank, target: armor_1, text: "مسار بري يلتف حول البحر الأحمر", color: "#f59e0b", duration: 9s }
+
+  - after: armor_1.arrived
+    pulse: { at: cairo, color: "#22c55e", radius: 60 }
+    sound: alert_ping
+    caption: { text: "٢. انقر نقرًا مزدوجًا على أي دولة لاستكشاف محافظاتها — أو اختبر عبور البحر بالدبابة!" }

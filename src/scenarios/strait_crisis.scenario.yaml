@@ -1,0 +1,34 @@
+meta:
+  title: "أزمة الممر البحري وبناء المراقبة"
+  map: geopolitics_strait
+
+timeline:
+  - at: 0s
+    camera: { focus: port_south, zoom: 1.25, duration: 1s }
+    caption: { text: "١. انطلاق الدورية البحرية والمبعوث نحو شبه الجزيرة" }
+    spawn:
+      - { id: patrol_1, actor: naval_corvette, at: port_south, faction: blue }
+      - { id: envoy_1, actor: diplomat_person, at: capital_north, faction: blue }
+
+  - at: 1.2s
+    move: { entity: patrol_1, to: strait_gate }
+    callout: { id: c_patrol, target: patrol_1, text: "دورية بحرية", color: "#38bdf8", duration: 6s }
+    draw_arrow: { id: route_sea, from: port_south, to: strait_gate, color: "#38bdf8", dashed: true, duration: 2s }
+
+  - at: 1.8s
+    move: { entity: envoy_1, to: peninsula_center }
+
+  - after: patrol_1.arrived
+    camera: { focus: strait_gate, zoom: 1.55, duration: 1.4s }
+    caption: { text: "٢. نقطة توتر في المضيق وبناء محطة الرادار الساحلية" }
+    sound: alert_ping
+    pulse: { at: strait_gate, color: "#ef4444", radius: 95 }
+    callout: { id: c_choke, target: strait_gate, text: "نقطة اختناق استراتيجية", color: "#ef4444" }
+    zone: { id: corridor_south, color: "#ef4444", opacity: 0.35, duration: 1.5s }
+    construct: { id: radar_1, actor: radar_outpost, at: coast_point_1, faction: blue, duration: 2.2s }
+
+  - at: 10s
+    camera: { focus: port_east, zoom: 1.15, duration: 1.5s }
+    caption: { text: "٣. مواصلة العبور نحو الميناء الشرقي — جرّب شريط الزمن أو صانع الحزم" }
+    move: { entity: patrol_1, to: port_east }
+    draw_arrow: { id: route_east, from: strait_gate, to: port_east, color: "#22c55e", dashed: false, duration: 2s }

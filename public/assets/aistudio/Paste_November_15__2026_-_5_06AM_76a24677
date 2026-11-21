@@ -1,0 +1,1601 @@
+في **التحديث الخامس** نعالج النقاط الخمس الجوهرية التي ذكرتها لتحويل الاستوديو من مجرد مشغّل إلى **بيئة عمل دائمة ومستقلة**:
+
+1. **حل مشكلة حجم الآليات مقارنة بالدول والخرائط:**
+   - إضافة معامل حجم تلقائي لكل خريطة (`unitScaleMultiplier`: صغير جدًا على خريطة العالم `0.32x`، متوسط على خرائط المحافظات `0.55x`، وكامل على خرائط الميدان `1.0x`).
+   - تعويض تلقائي حسب مستوى التقريب (`Zoom-Adaptive Scaling`) + **شريط تحكم مباشر في حجم الآليات** (`0.3x` إلى `2.0x`) لتضبطه بالعين كما يناسبك.
+2. **فصل الخرائط ("البيئات") عن السيناريوهات:**
+   - أصبحت الخريطة هي الأساس المستقل؛ يمكنك التنقل بين خريطة العالم، الدول، والمحافظات واللعب/البناء عليها مباشرة دون التقيد بسيناريو، أو تشغيل أي سيناريو فوقها.
+3. **مسجل السيناريو الحي (`ActionRecorder`):**
+   - تضغط **"🔴 بدء تسجيل سيناريو"** ثم تتحرك على الخريطة، تضع دبابات وسفنًا، تحركها، تبني مبانٍ، تلون دولًا/محافظات، ترسم أسهمًا، وتضبط الكاميرا — فيُسجل كل إجراء بتوقيته الحقيقي ويُحوَّل فورًا إلى **ملف سيناريو YAML صالح وقابل للتعديل وإعادة التشغيل** بنفس الحركات حرفيًا!
+4. **قاعدة بيانات حقيقية في المتصفح (`IndexedDB`):**
+   - استبدال `localStorage` المحدود بقاعدة بيانات **IndexedDB** تحفظ **سجل السيناريوهات** (المسجلة يدويًا والمكتوبة بالكود)، **الخرائط المخصصة وخرائط الدول التي دخلت إليها**، **الكيانات الجديدة**، وحتى **آخر خريطة وسيناريو وإعداد حجم** — فلا يضيع أي شيء عند تحديث الصفحة.
+
+---
+
+## 1) تحديث العقود والنواة (`src/core/`) لدعم الإحداثيات الحرة وحجم الخريطة
+
+### `src/core/types.ts`
+استبدل محتوى `src/core/types.ts` بهذا الملف المحدّث (أهم إضافة: `PointRef = string | Point` ليعمل المحرك مع أسماء المراسي للذكاء الاصطناعي **ومع النقر الحر في أي نقطة على الخريطة** أثناء التسجيل):
+
+```ts
+export type Domain = 'land' | 'sea' | 'air';
+export type Faction = 'blue' | 'red' | 'neutral';
+export type SoundId = 'build_complete' | 'alert_ping' | 'move_order' | 'spawn_pop';
+export type NavCell = 0 | 1 | 2; // 0 = يابسة، 1 = ماء، 2 = عائق صلب
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export type PointRef = string | Point;
+
+export interface MapZoneDef {
+  id: string;
+  label: string;
+  polygon: Point[];
+}
+
+export interface GeoRegionItem {
+  id: string;
+  iso3?: string;
+  name: string;
+  nameAr?: string;
+  center: Point;
+  bounds: { minX: number; minY: number; maxX: number; maxY: number };
+  polygons: Point[][];
+}
+
+export interface MapPack {
+  id: string;
+  title: string;
+  kind: 'geopolitical' | 'tactical';
+  width: number;
+  height: number;
+  cellSize: number;
+  cols: number;
+  rows: number;
+  navGrid: NavCell[];
+  svgOrUrl: string;
+  unitScaleMultiplier?: number;
+  anchors: Record<string, Point & { label?: string }>;
+  zones: Record<string, MapZoneDef>;
+  geoLevel?: 'world' | 'country';
+  countryIso3?: string;
+  regions?: Record<string, GeoRegionItem>;
+  hitTest?: (worldPt: Point) => string | null;
+}
+
+export interface ActorTemplate {
+  domain: Domain;
+  kind: 'person' | 'vehicle' | 'ship' | 'building';
+  speed: number;
+  turnRate: number;
+  scale: number;
+  radius: number;
+}
+
+export interface ActorPack extends ActorTemplate {
+  id: string;
+  label: string;
+  extends?: string;
+  svg: string;
+}
+
+export interface PackBundle {
+  maps?: MapPack[];
+  actors?: ActorPack[];
+}
+
+export interface ScenarioStep {
+  id?: string;
+  at?: string;
+  after?: string;
+  camera?: { focus: PointRef; zoom?: number; duration?: string };
+  caption?: { text: string };
+  sound?: SoundId;
+  spawn?: Array<{ id: string; actor: string; at: PointRef; faction?: Faction }>;
+  move?: { entity: string; to: PointRef };
+  construct?: { id?: string; actor: string; at: PointRef; faction?: Faction; duration?: string };
+  remove?: { entity: string };
+  draw_arrow?: { id: string; from: PointRef; to: PointRef; color?: string; dashed?: boolean; duration?: string };
+  zone?: { id: string; color: string; opacity?: number; duration?: string };
+  callout?: { id: string; target: string; text: string; color?: string; duration?: string };
+  pulse?: { at: PointRef; color?: string; radius?: number };
+}
+
+export interface ScenarioFile {
+  meta: { title: string; map: string };
+  timeline: ScenarioStep[];
+}
+
+export interface SavedScenarioRecord {
+  id: string;
+  title: string;
+  mapId: string;
+  yaml: string;
+  source: 'preset' | 'recorded' | 'code';
+  updatedAt: number;
+}
+
+export interface EntityState {
+  id: string;
+  actorId: string;
+  kind: ActorTemplate['kind'];
+  domain: Domain;
+  faction: Faction;
+  x: number;
+  y: number;
+  prevX: number;
+  prevY: number;
+  angle: number;
+  prevAngle: number;
+  path: Point[];
+  speed: number;
+  turnRate: number;
+  scale: number;
+  radius: number;
+  buildProgress: number;
+  buildRate: number;
+  isMoving: boolean;
+  arrivedTick: number | null;
+}
+
+export interface ArrowState {
+  id: string;
+  from: Point;
+  to: Point;
+  color: string;
+  dashed: boolean;
+  progress: number;
+  rate: number;
+}
+
+export interface ZoneVisualState {
+  id: string;
+  color: string;
+  targetOpacity: number;
+  opacity: number;
+  rate: number;
+}
+
+export interface CalloutState {
+  id: string;
+  target: string;
+  text: string;
+  color: string;
+  remainingTicks: number | null;
+}
+
+export interface PulseState {
+  x: number;
+  y: number;
+  color: string;
+  maxRadius: number;
+  progress: number;
+}
+
+export interface CameraTarget {
+  x: number;
+  y: number;
+  zoom: number;
+  durationSec: number;
+  seq: number;
+}
+
+export type Order =
+  | { type: 'spawn'; id: string; actorId: string; at: Point; faction: Faction }
+  | { type: 'move'; entityId: string; to: Point }
+  | { type: 'construct'; id: string; actorId: string; at: Point; faction: Faction; durationSec: number }
+  | { type: 'remove'; entityId: string };
+
+export interface ValidationIssue {
+  stepIndex: number;
+  field: string;
+  message: string;
+}
+```
+
+### `src/core/validator.ts` (يدعم `PointRef` — أسماء المراسي أو الإحداثيات المباشرة `{x, y}`)
+حدّث دالة `checkAnchor` داخل `src/core/validator.ts` لتصبح `checkPointRef`:
+```ts
+import { ActorPack, MapPack, PointRef, ScenarioFile, ValidationIssue } from './types';
+
+function closestKey(target: string, keys: string[]): string | null {
+  let best: string | null = null;
+  let bestScore = Infinity;
+  for (const k of keys) {
+    let diff = Math.abs(k.length - target.length);
+    const minL = Math.min(k.length, target.length);
+    for (let i = 0; i < minL; i++) if (k[i] !== target[i]) diff++;
+    if (diff < bestScore && diff <= 4) {
+      bestScore = diff;
+      best = k;
+    }
+  }
+  return best;
+}
+
+export function validateScenario(
+  scenario: ScenarioFile,
+  map: MapPack | undefined,
+  actors: Record<string, ActorPack>
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  if (!scenario?.meta?.map) {
+    issues.push({ stepIndex: -1, field: 'meta.map', message: 'يجب تحديد اسم الخريطة في meta.map' });
+    return issues;
+  }
+  if (!map) {
+    issues.push({ stepIndex: -1, field: 'meta.map', message: `الخريطة "${scenario.meta.map}" غير موجودة في قاعدة البيانات` });
+    return issues;
+  }
+
+  const anchorKeys = Object.keys(map.anchors);
+  const zoneKeys = Object.keys(map.zones);
+  const actorKeys = Object.keys(actors);
+  const spawnedIds = new Set<string>();
+
+  const checkPointRef = (stepIdx: number, field: string, ref: PointRef | undefined) => {
+    if (!ref) {
+      issues.push({ stepIndex: stepIdx, field, message: 'الموضع مفقود' });
+      return;
+    }
+    if (typeof ref === 'string') {
+      if (!map.anchors[ref]) {
+        const hint = closestKey(ref, anchorKeys);
+        issues.push({
+          stepIndex: stepIdx,
+          field,
+          message: `نقطة غير معروفة "${ref}"${hint ? ` — هل تقصد "${hint}"؟` : ''}`
+        });
+      }
+    } else if (typeof ref.x !== 'number' || typeof ref.y !== 'number') {
+      issues.push({ stepIndex: stepIdx, field, message: 'الإحداثيات {x, y} غير صالحة' });
+    }
+  };
+
+  const checkActor = (stepIdx: number, field: string, name: string) => {
+    if (!actors[name]) {
+      const hint = closestKey(name, actorKeys);
+      issues.push({
+        stepIndex: stepIdx,
+        field,
+        message: `كيان غير معروف "${name}"${hint ? ` — هل تقصد "${hint}"؟` : ''}`
+      });
+    }
+  };
+
+  (scenario.timeline ?? []).forEach((step, idx) => {
+    if (!step.at && !step.after) {
+      issues.push({ stepIndex: idx, field: 'at/after', message: 'كل خطوة تحتاج توقيت at أو محفز after' });
+    }
+    if (step.camera) checkPointRef(idx, 'camera.focus', step.camera.focus);
+    if (step.pulse) checkPointRef(idx, 'pulse.at', step.pulse.at);
+    if (step.spawn) {
+      for (const s of step.spawn) {
+        spawnedIds.add(s.id);
+        checkActor(idx, 'spawn.actor', s.actor);
+        checkPointRef(idx, 'spawn.at', s.at);
+      }
+    }
+    if (step.move) {
+      if (!spawnedIds.has(step.move.entity)) {
+        issues.push({ stepIndex: idx, field: 'move.entity', message: `الوحدة "${step.move.entity}" لم تُنشأ قبل هذا الأمر` });
+      }
+      checkPointRef(idx, 'move.to', step.move.to);
+    }
+    if (step.remove && !spawnedIds.has(step.remove.entity)) {
+      issues.push({ stepIndex: idx, field: 'remove.entity', message: `الوحدة "${step.remove.entity}" غير موجودة للإزالة` });
+    }
+    if (step.construct) {
+      if (step.construct.id) spawnedIds.add(step.construct.id);
+      checkActor(idx, 'construct.actor', step.construct.actor);
+      checkPointRef(idx, 'construct.at', step.construct.at);
+    }
+    if (step.draw_arrow) {
+      checkPointRef(idx, 'draw_arrow.from', step.draw_arrow.from);
+      checkPointRef(idx, 'draw_arrow.to', step.draw_arrow.to);
+    }
+    if (step.zone && !map.zones[step.zone.id]) {
+      const hint = closestKey(step.zone.id, zoneKeys);
+      issues.push({
+        stepIndex: idx,
+        field: 'zone.id',
+        message: `منطقة غير معروفة "${step.zone.id}"${hint ? ` — هل تقصد "${hint}"؟` : ''}`
+      });
+    }
+    if (step.callout) {
+      const t = step.callout.target;
+      if (!map.anchors[t] && !spawnedIds.has(t)) {
+        issues.push({ stepIndex: idx, field: 'callout.target', message: `الهدف "${t}" ليس مرسى في الخريطة ولا وحدة منشأة` });
+      }
+    }
+  });
+
+  return issues;
+}
+```
+
+### `src/core/engine.ts` (تحديث استخدام `resolvePoint`)
+أضف هذه الدالة المساعدة في أعلى `src/core/engine.ts`:
+```ts
+function resolvePoint(map: MapPack, ref: PointRef | undefined): Point | undefined {
+  if (!ref) return undefined;
+  if (typeof ref === 'string') return map.anchors[ref];
+  if (typeof ref.x === 'number' && typeof ref.y === 'number') return ref;
+  return undefined;
+}
+```
+واستبدل في `executeStep` كل استدعاءات `this.map.anchors[...]` بـ `resolvePoint(this.map, ...)`:
+- `st.camera`: `const anchor = resolvePoint(this.map, st.camera.focus);`
+- `st.spawn`: `const pt = resolvePoint(this.map, s.at);`
+- `st.move`: `const pt = resolvePoint(this.map, st.move.to);`
+- `st.construct`: `const pt = resolvePoint(this.map, st.construct.at);`
+- `st.draw_arrow`: `const from = resolvePoint(this.map, st.draw_arrow.from); const to = resolvePoint(this.map, st.draw_arrow.to);`
+- `st.pulse`: `const pt = resolvePoint(this.map, st.pulse.at);`
+*(ولا تنسَ استيراد `Point` و `PointRef` من `./types` في أول الملف).*
+
+---
+
+## 2) مسجل السيناريو الحي (`src/core/actionRecorder.ts`) — ملف جديد
+
+يسجل كل إجراء تقوم به على الخريطة أو الكاميرا بتوقيته الدقيق ويولّد ملف YAML جاهزًا للتشغيل والحفظ:
+
+```ts
+import yaml from 'js-yaml';
+import { Faction, Point, ScenarioFile, ScenarioStep } from './types';
+
+export class ActionRecorder {
+  public isRecording = false;
+  public mapId = '';
+  public steps: ScenarioStep[] = [];
+  private startPerfMs = 0;
+
+  start(mapId: string, initialCamera: { x: number; y: number; zoom: number }): void {
+    this.isRecording = true;
+    this.mapId = mapId;
+    this.steps = [
+      {
+        at: '0.0s',
+        camera: {
+          focus: { x: Math.round(initialCamera.x), y: Math.round(initialCamera.y) },
+          zoom: Number(initialCamera.zoom.toFixed(2)),
+          duration: '0.8s'
+        }
+      }
+    ];
+    this.startPerfMs = performance.now();
+  }
+
+  stop(): void {
+    this.isRecording = false;
+  }
+
+  elapsedSec(): number {
+    if (!this.isRecording) return 0;
+    return (performance.now() - this.startPerfMs) / 1000;
+  }
+
+  private atLabel(): string {
+    return `${this.elapsedSec().toFixed(1)}s`;
+  }
+
+  private roundPt(pt: Point): Point {
+    return { x: Math.round(pt.x), y: Math.round(pt.y) };
+  }
+
+  recordSpawn(id: string, actor: string, pt: Point, faction: Faction = 'blue'): void {
+    if (!this.isRecording) return;
+    this.steps.push({
+      at: this.atLabel(),
+      spawn: [{ id, actor, at: this.roundPt(pt), faction }]
+    });
+  }
+
+  recordMove(entityId: string, pt: Point): void {
+    if (!this.isRecording) return;
+    this.steps.push({
+      at: this.atLabel(),
+      move: { entity: entityId, to: this.roundPt(pt) }
+    });
+  }
+
+  recordConstruct(id: string, actor: string, pt: Point, faction: Faction = 'blue', durationSec = 1.8): void {
+    if (!this.isRecording) return;
+    this.steps.push({
+      at: this.atLabel(),
+      construct: { id, actor, at: this.roundPt(pt), faction, duration: `${durationSec}s` }
+    });
+  }
+
+  recordRemove(entityId: string): void {
+    if (!this.isRecording) return;
+    this.steps.push({ at: this.atLabel(), remove: { entity: entityId } });
+  }
+
+  recordZone(zoneId: string, color: string, opacity = 0.35): void {
+    if (!this.isRecording) return;
+    this.steps.push({
+      at: this.atLabel(),
+      zone: { id: zoneId, color, opacity, duration: '1s' }
+    });
+  }
+
+  recordArrow(id: string, from: Point, to: Point, color = '#f59e0b', dashed = true): void {
+    if (!this.isRecording) return;
+    this.steps.push({
+      at: this.atLabel(),
+      draw_arrow: { id, from: this.roundPt(from), to: this.roundPt(to), color, dashed, duration: '1.2s' }
+    });
+  }
+
+  recordPulse(pt: Point, color = '#ef4444'): void {
+    if (!this.isRecording) return;
+    this.steps.push({ at: this.atLabel(), pulse: { at: this.roundPt(pt), color, radius: 70 } });
+  }
+
+  recordCaption(text: string): void {
+    if (!this.isRecording) return;
+    this.steps.push({ at: this.atLabel(), caption: { text } });
+  }
+
+  recordCamera(x: number, y: number, zoom: number): void {
+    if (!this.isRecording) return;
+    this.steps.push({
+      at: this.atLabel(),
+      camera: {
+        focus: { x: Math.round(x), y: Math.round(y) },
+        zoom: Number(zoom.toFixed(2)),
+        duration: '1s'
+      }
+    });
+  }
+
+  toScenarioFile(title: string): ScenarioFile {
+    return {
+      meta: { title, map: this.mapId },
+      timeline: this.steps
+    };
+  }
+
+  toYaml(title: string): string {
+    return yaml.dump(this.toScenarioFile(title), { lineWidth: 120, noRefs: true });
+  }
+}
+```
+
+---
+
+## 3) قاعدة البيانات الدائمة (`src/storage/studioDb.ts`) — ملف جديد
+
+تحفظ الخرائط (بما فيها خرائط الدول والمحافظات التي زرتها)، الكيانات المخصصة، وسجل السيناريوهات وإعداداتك داخل **IndexedDB** بحيث لا يختفي شيء عند تحديث الصفحة:
+
+```ts
+import { ActorPack, GeoRegionItem, MapPack, Point, SavedScenarioRecord } from '../core/types';
+
+const DB_NAME = 'rw_studio_db';
+const DB_VERSION = 1;
+
+function pointInPoly(pt: Point, poly: Point[]): boolean {
+  let inside = false;
+  for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+    const xi = poly[i].x, yi = poly[i].y;
+    const xj = poly[j].x, yj = poly[j].y;
+    const intersect = yi > pt.y !== yj > pt.y && pt.x < ((xj - xi) * (pt.y - yi)) / (yj - yi + 1e-9) + xi;
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+export function createPolygonHitTester(regions: Record<string, GeoRegionItem>): (pt: Point) => string | null {
+  const list = Object.values(regions);
+  return (pt: Point) => {
+    for (const r of list) {
+      if (pt.x < r.bounds.minX || pt.x > r.bounds.maxX || pt.y < r.bounds.minY || pt.y > r.bounds.maxY) continue;
+      for (const poly of r.polygons) {
+        if (poly.length >= 3 && pointInPoly(pt, poly)) return r.id;
+      }
+    }
+    return null;
+  };
+}
+
+export function rehydrateMapPack(map: MapPack): MapPack {
+  if (!map.hitTest && map.regions) {
+    map.hitTest = createPolygonHitTester(map.regions);
+  }
+  return map;
+}
+
+class StudioDatabase {
+  private dbPromise: Promise<IDBDatabase> | null = null;
+
+  private open(): Promise<IDBDatabase> {
+    if (this.dbPromise) return this.dbPromise;
+    this.dbPromise = new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('maps')) db.createObjectStore('maps', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('actors')) db.createObjectStore('actors', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('scenarios')) db.createObjectStore('scenarios', { keyPath: 'id' });
+        if (!db.objectStoreNames.contains('settings')) db.createObjectStore('settings', { keyPath: 'key' });
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+    return this.dbPromise;
+  }
+
+  private async getAll<T>(storeName: string): Promise<T[]> {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const req = tx.objectStore(storeName).getAll();
+      req.onsuccess = () => resolve(req.result as T[]);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  private async put(storeName: string, value: unknown): Promise<void> {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).put(value);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  private async del(storeName: string, key: string): Promise<void> {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readwrite');
+      tx.objectStore(storeName).delete(key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async loadAllMaps(): Promise<MapPack[]> {
+    const list = await this.getAll<MapPack>('maps');
+    return list.map(rehydrateMapPack);
+  }
+
+  async saveMap(map: MapPack): Promise<void> {
+    // إزالة الدالة hitTest قبل التخزين لأن IndexedDB لا يخزن الدوال
+    const { hitTest: _ignore, ...serializable } = map;
+    await this.put('maps', serializable);
+  }
+
+  async loadAllActors(): Promise<ActorPack[]> {
+    return this.getAll<ActorPack>('actors');
+  }
+
+  async saveActor(actor: ActorPack): Promise<void> {
+    await this.put('actors', actor);
+  }
+
+  async loadAllScenarios(): Promise<SavedScenarioRecord[]> {
+    const list = await this.getAll<SavedScenarioRecord>('scenarios');
+    return list.sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  async saveScenario(rec: SavedScenarioRecord): Promise<void> {
+    await this.put('scenarios', rec);
+  }
+
+  async deleteScenario(id: string): Promise<void> {
+    await this.del('scenarios', id);
+  }
+
+  async getSetting<T>(key: string): Promise<T | undefined> {
+    const db = await this.open();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('settings', 'readonly');
+      const req = tx.objectStore('settings').get(key);
+      req.onsuccess = () => resolve(req.result?.value as T | undefined);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async setSetting(key: string, value: unknown): Promise<void> {
+    await this.put('settings', { key, value });
+  }
+}
+
+export const studioDb = new StudioDatabase();
+```
+
+---
+
+## 4) ضبط أحجام الآليات حسب الخريطة (`worldGeoEngine.ts`, `demoPacks.ts`, `studioRenderer.ts`)
+
+1. في `src/maps/worldGeoEngine.ts`:
+   - داخل `buildWorldMapPack()` أضف في الكائن المُعاد: `unitScaleMultiplier: 0.32,` (فتصبح الآليات والسفن متناسبة بدقة مع حجم الدول والمضائق!).
+   - داخل `buildCountryProvincesMapPack()` أضف: `unitScaleMultiplier: 0.55,`.
+2. في `src/packs/demoPacks.ts`:
+   - أضف في `buildStraitMap()`: `unitScaleMultiplier: 0.72,`.
+   - أضف في `buildValleyMap()`: `unitScaleMultiplier: 1.0,`.
+
+3. في `src/renderer/studioRenderer.ts`:
+   - أضف خاصية التحكم في الحجم ودالة قراءة موضع الكاميرا لتسجيلها:
+     ```ts
+     public userUnitScale = 1.0;
+
+     getCameraState() {
+       return { x: this.camX, y: this.camY, zoom: this.camZoom };
+     }
+     ```
+   - حدّث `pickEntity(wx, wy)` لتبقى سهولة الضغط على الوحدات الصغيرة ثابتة على أي زوم:
+     ```ts
+     private pickEntity(wx: number, wy: number): string | null {
+       const hitRadius = Math.max(16 / this.camZoom, 22 * this.lastUnitFactor);
+       for (const [id, view] of this.entityViews) {
+         if (Math.hypot(view.container.x - wx, view.container.y - wy) <= hitRadius) return id;
+       }
+       return null;
+     }
+     ```
+   - وأضف `private lastUnitFactor = 1;` ثم داخل `render(engine, alpha, timeSec)` احسب معامل الحجم المتوازن وطبّقه على كل وحدة:
+     ```ts
+     const mapMul = engine.map.unitScaleMultiplier ?? 1;
+     const zoomComp = Math.max(0.45, Math.min(1.25, 1 / Math.pow(this.camZoom, 0.4)));
+     this.lastUnitFactor = mapMul * this.userUnitScale * zoomComp;
+     ```
+     وداخل حلقة `for (const ent of engine.entities.values())`:
+     ```ts
+     view.container.position.set(x, y);
+     view.container.scale.set(this.lastUnitFactor);
+     ```
+   - وعدّل حجم الجسيمات (`radius`) لتتناسب مع `this.lastUnitFactor`:
+     `radius: (ent.domain === 'sea' ? 4 : 3) * this.lastUnitFactor`!
+   - *(وعدّل ارتفاع البطاقات العائمة `callout` فوق الكيان ليراعي `32 * this.lastUnitFactor`)*!
+
+---
+
+## 5) تحديث سجل الحزم (`src/packs/packRegistry.ts`) ليستخدم `StudioDB`
+
+```ts
+import { ActorPack, ActorTemplate, MapPack, PackBundle, SavedScenarioRecord } from '../core/types';
+import { buildWorldMapPack } from '../maps/worldGeoEngine';
+import { studioDb } from '../storage/studioDb';
+import { DEMO_ACTORS, DEMO_MAPS } from './demoPacks';
+
+export const ACTOR_TEMPLATES: Record<string, ActorTemplate> = {
+  _person: { domain: 'land', kind: 'person', speed: 65, turnRate: 10, scale: 34, radius: 14 },
+  _vehicle: { domain: 'land', kind: 'vehicle', speed: 95, turnRate: 4.5, scale: 42, radius: 20 },
+  _ship: { domain: 'sea', kind: 'ship', speed: 85, turnRate: 2.6, scale: 50, radius: 22 },
+  _building: { domain: 'land', kind: 'building', speed: 0, turnRate: 0, scale: 48, radius: 24 }
+};
+
+export class PackRegistry {
+  public maps: Record<string, MapPack> = {};
+  public actors: Record<string, ActorPack> = { ...DEMO_ACTORS };
+  public scenarios: SavedScenarioRecord[] = [];
+
+  async init(presetScenarios: SavedScenarioRecord[]): Promise<void> {
+    const worldMap = buildWorldMapPack();
+    this.maps = { [worldMap.id]: worldMap, ...DEMO_MAPS };
+
+    const savedMaps = await studioDb.loadAllMaps();
+    for (const m of savedMaps) {
+      // تحديث العالم من النسخة الحية إذا لزم، والاحتفاظ بالخرائط المخصصة والدول
+      if (m.id !== 'world_live') this.maps[m.id] = m;
+    }
+
+    const savedActors = await studioDb.loadAllActors();
+    for (const a of savedActors) this.applyActor(a);
+
+    const savedScenarios = await studioDb.loadAllScenarios();
+    const existingIds = new Set(savedScenarios.map((s) => s.id));
+    for (const p of presetScenarios) {
+      if (!existingIds.has(p.id)) {
+        await studioDb.saveScenario(p);
+        savedScenarios.push(p);
+      }
+    }
+    this.scenarios = savedScenarios.sort((a, b) => b.updatedAt - a.updatedAt);
+  }
+
+  private applyActor(a: ActorPack): void {
+    const tpl = a.extends ? ACTOR_TEMPLATES[a.extends] : undefined;
+    this.actors[a.id] = { ...(tpl ?? ACTOR_TEMPLATES._person), ...a };
+  }
+
+  async saveCustomMap(map: MapPack): Promise<void> {
+    this.maps[map.id] = map;
+    await studioDb.saveMap(map);
+  }
+
+  async saveCustomActor(actor: ActorPack): Promise<void> {
+    const tpl = actor.extends ? ACTOR_TEMPLATES[actor.extends] : ACTOR_TEMPLATES._person;
+    const resolved: ActorPack = { ...tpl, ...actor };
+    this.actors[resolved.id] = resolved;
+    await studioDb.saveActor(resolved);
+  }
+
+  async saveScenarioRecord(rec: SavedScenarioRecord): Promise<void> {
+    await studioDb.saveScenario(rec);
+    this.scenarios = [rec, ...this.scenarios.filter((s) => s.id !== rec.id)];
+  }
+
+  async deleteScenarioRecord(id: string): Promise<void> {
+    await studioDb.deleteScenario(id);
+    this.scenarios = this.scenarios.filter((s) => s.id !== id);
+  }
+
+  async importBundle(bundle: PackBundle): Promise<{ mapsAdded: number; actorsAdded: number }> {
+    for (const m of bundle.maps ?? []) await this.saveCustomMap(m);
+    for (const a of bundle.actors ?? []) await this.saveCustomActor(a);
+    return { mapsAdded: bundle.maps?.length ?? 0, actorsAdded: bundle.actors?.length ?? 0 };
+  }
+
+  exportCurrentBundle(): PackBundle {
+    return {
+      maps: Object.values(this.maps).map(({ hitTest: _h, ...rest }) => rest),
+      actors: Object.values(this.actors)
+    };
+  }
+}
+```
+
+---
+
+## 6) الواجهة الموحدة الجديدة (`src/main.ts` و `src/style.css`)
+
+أضف هذه التنسيقات إلى `src/style.css`:
+```css
+.rec-box { border: 1px solid #ef4444; background: rgba(127, 29, 29, 0.22); }
+.rec-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; background: #ef4444; margin-left: 6px; animation: pulseDot 1s infinite; }
+@keyframes pulseDot { 0%,100% { opacity: 1; } 50% { opacity: 0.25; } }
+.scale-row { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+.scale-row input[type="range"] { flex: 1; accent-color: #38bdf8; }
+```
+
+واستبدل `src/main.ts` بهذا الملف المتكامل الذي يفصل **اختيار البيئة (الخريطة)** عن **سجل السيناريوهات** ويضم **مسجل السيناريو الحي** و**قاعدة البيانات**:
+
+```ts
+import './style.css';
+import yaml from 'js-yaml';
+import { ActionRecorder } from './core/actionRecorder';
+import { buildAiScenarioPrompt, generateCatalogMarkdown } from './core/catalog';
+import { DT, StudioEngine, TICK_RATE } from './core/engine';
+import { MapPack, NavCell, PackBundle, Point, SavedScenarioRecord, ScenarioFile } from './core/types';
+import { validateScenario } from './core/validator';
+import { buildCountryProvincesMapPack } from './maps/worldGeoEngine';
+import { PackRegistry } from './packs/packRegistry';
+import { SoundSynth } from './renderer/soundSynth';
+import { StudioRenderer } from './renderer/studioRenderer';
+import { studioDb } from './storage/studioDb';
+import straitYaml from './scenarios/strait_crisis.scenario.yaml?raw';
+import valleyYaml from './scenarios/valley_advance.scenario.yaml?raw';
+import worldYaml from './scenarios/world_demo.scenario.yaml?raw';
+
+const PRESET_SCENARIOS: SavedScenarioRecord[] = [
+  { id: 'preset_world', title: 'الملاحة العالمية الحقيقية', mapId: 'world_live', yaml: worldYaml, source: 'preset', updatedAt: 3 },
+  { id: 'preset_strait', title: 'أزمة المضيق البحري', mapId: 'geopolitics_strait', yaml: straitYaml, source: 'preset', updatedAt: 2 },
+  { id: 'preset_valley', title: 'عملية عبور الجسر', mapId: 'tactical_valley', yaml: valleyYaml, source: 'preset', updatedAt: 1 }
+];
+
+const registry = new PackRegistry();
+await registry.init(PRESET_SCENARIOS);
+
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
+  <div class="layout">
+    <aside class="sidebar">
+      <div class="tabs">
+        <button id="tabPlay" class="active">البيئة والسيناريو</button>
+        <button id="tabPack">صانع الحزم (خرائط/كيانات)</button>
+      </div>
+
+      <div id="viewPlay" style="display:flex; flex-direction:column; gap:9px;">
+        <!-- 1. الخريطة / البيئة المستقلة -->
+        <div class="panel">
+          <div class="badge">البيئة / الخريطة الحالية (مستقلة عن السيناريو):</div>
+          <div class="row">
+            <select id="mapSelect" style="flex:1"></select>
+            <button id="clearBoardBtn" title="تفريغ الخريطة للعب أو التسجيل الحر">لوح فارغ</button>
+          </div>
+          <div class="scale-row">
+            <span>حجم الآليات:</span>
+            <input id="unitScaleSlider" type="range" min="0.3" max="2.0" step="0.05" value="1" />
+            <span id="unitScaleVal">1.0x</span>
+          </div>
+        </div>
+
+        <!-- 2. مسجل السيناريو الحي بالتحركات -->
+        <div id="recorderPanel" class="panel">
+          <div class="row" style="justify-content:space-between">
+            <span class="badge">مسجل السيناريو بالتحركات اليدوية:</span>
+            <span id="recTimer" class="badge" style="display:none"><span class="rec-dot"></span><b id="recClock">0.0s</b> (<span id="recCount">0</span> خطوة)</span>
+          </div>
+          <div class="row">
+            <button id="startActionRecBtn" class="active" style="flex:1">🔴 بدء تسجيل سيناريو حي</button>
+            <button id="stopActionRecBtn" class="danger" style="display:none; flex:1">⏹ إيقاف وحفظ في السجل</button>
+          </div>
+          <div id="recQuickActions" class="row" style="display:none">
+            <button id="recCamBtn">📷 لقطة كاميرا</button>
+            <button id="recCaptionBtn">💬 نص شرح</button>
+            <button id="recZoneBtn">🎨 تلوين المحددة</button>
+            <button id="recArrowBtn">↗ رسم سهم</button>
+            <button id="recPulseBtn">📡 نبضة تنبيه</button>
+            <button id="recDelUnitBtn">🗑 حذف المحددة</button>
+          </div>
+        </div>
+
+        <!-- 3. اللعب الحر -->
+        <div class="panel">
+          <div class="badge">الأدوات والآليات (اضغط على الخريطة للوضع أو التحريك):</div>
+          <div class="row" id="sandboxBar"></div>
+        </div>
+
+        <!-- 4. سجل السيناريوهات المحفوظة في قاعدة البيانات -->
+        <div class="panel">
+          <div class="badge">سجل السيناريوهات المحفوظة (يبقى بعد تحديث الصفحة):</div>
+          <div class="row">
+            <select id="scenarioSelect" style="flex:1"></select>
+            <button id="loadScenarioBtn" class="active">تشغيل</button>
+            <button id="delScenarioBtn">حذف</button>
+          </div>
+          <div class="row">
+            <button id="playBtn">إيقاف مؤقت</button>
+            <button id="restartBtn">إعادة</button>
+            <select id="speedSelect"><option value="1">1x</option><option value="2">2x</option><option value="0.5">0.5x</option></select>
+            <button id="recVideoBtn">تصوير WebM</button>
+          </div>
+        </div>
+
+        <!-- 5. الذكاء الاصطناعي ومحرر YAML -->
+        <div class="panel">
+          <input type="text" id="aiTopic" placeholder="موضوع للذكاء الاصطناعي على هذه الخريطة..." />
+          <div class="row">
+            <button id="copyPromptBtn">نسخ Prompt للـ AI</button>
+            <button id="copyCatalogBtn">نسخ CATALOG.md</button>
+          </div>
+          <textarea id="yamlEditor"></textarea>
+          <div class="row">
+            <button id="applyBtn" class="active" style="flex:1">تطبيق الكود</button>
+            <button id="saveYamlBtn" style="flex:1">💾 حفظ في السجل</button>
+          </div>
+        </div>
+        <div id="statusBox"></div>
+      </div>
+
+      <!-- تبويب صانع الحزم -->
+      <div id="viewPack" style="display:none; flex-direction:column; gap:10px;">
+        <div class="panel">
+          <div class="badge">1) تعديل الخريطة الحالية أو رفع خريطة جديدة</div>
+          <input type="text" id="newMapId" placeholder="معرف الخريطة (مثال: my_map)" />
+          <input type="file" id="mapImageInput" accept="image/*" />
+          <div class="row" id="mapToolBar">
+            <button data-mtool="anchor" class="active">+ مرسى</button>
+            <button data-mtool="zone">+ منطقة</button>
+            <button data-mtool="paint_land">يابسة</button>
+            <button data-mtool="paint_sea">بحر</button>
+            <button data-mtool="paint_block">عائق</button>
+          </div>
+          <div class="row">
+            <input type="text" id="pointNameInput" placeholder="اسم المرسى/المنطقة" style="flex:1" />
+            <button id="finishZoneBtn">إنهاء المنطقة</button>
+          </div>
+          <button id="saveMapBtn" class="active">حفظ الخريطة في قاعدة البيانات</button>
+        </div>
+
+        <div class="panel">
+          <div class="badge">2) إضافة كيان جديد (شخصية / آلية / سفينة / مبنى)</div>
+          <input type="text" id="newActorId" placeholder="المعرّف (cargo_truck)" />
+          <input type="text" id="newActorLabel" placeholder="الاسم الظاهر" />
+          <select id="newActorTpl">
+            <option value="_person">قالب: شخصية (_person)</option>
+            <option value="_vehicle">قالب: آلية برية (_vehicle)</option>
+            <option value="_ship">قالب: سفينة (_ship)</option>
+            <option value="_building">قالب: مبنى (_building)</option>
+          </select>
+          <input type="file" id="actorImgInput" accept="image/*" />
+          <button id="saveActorBtn" class="active">حفظ الكيان في قاعدة البيانات</button>
+        </div>
+
+        <div class="panel">
+          <button id="exportPackBtn">تصدير كل الحزم (.pack.yaml)</button>
+        </div>
+        <div id="packStatusBox"></div>
+      </div>
+    </aside>
+
+    <main class="stage-wrap">
+      <div id="geoHud" class="geo-hud">
+        <span id="geoBreadcrumb">🌍 العالم</span>
+        <span id="geoHoverLabel" class="badge">مرّر على دولة للتحديد، وانقر مرتين للدخول للمحافظات</span>
+        <button id="drillDownBtn" style="display:none" class="active">دخول إلى المحافظات ↗</button>
+        <button id="backWorldBtn" style="display:none">↩ العودة لخريطة العالم</button>
+      </div>
+      <div id="toastBar" class="toast-bar" style="display:none"></div>
+      <div id="stageHost" class="stage-host"></div>
+      <div id="captionBar" class="caption-bar" style="display:none"></div>
+      <div class="timeline-bar">
+        <span id="timeLabel">0.0s</span>
+        <input id="timeScrubber" type="range" min="0" max="600" value="0" />
+        <span id="durLabel">20.0s</span>
+      </div>
+    </main>
+  </div>
+`;
+
+const sound = new SoundSynth();
+const renderer = new StudioRenderer();
+const actionRecorder = new ActionRecorder();
+
+const stageHost = document.getElementById('stageHost')!;
+const mapSelect = document.getElementById('mapSelect') as HTMLSelectElement;
+const scenarioSelect = document.getElementById('scenarioSelect') as HTMLSelectElement;
+const yamlEditor = document.getElementById('yamlEditor') as HTMLTextAreaElement;
+const statusBox = document.getElementById('statusBox')!;
+const packStatusBox = document.getElementById('packStatusBox')!;
+const captionBar = document.getElementById('captionBar')!;
+const scrubber = document.getElementById('timeScrubber') as HTMLInputElement;
+const timeLabel = document.getElementById('timeLabel')!;
+const durLabel = document.getElementById('durLabel')!;
+const unitScaleSlider = document.getElementById('unitScaleSlider') as HTMLInputElement;
+const unitScaleVal = document.getElementById('unitScaleVal')!;
+
+let engine: StudioEngine;
+let playing = true;
+let speed = 1;
+let activeTool = 'select';
+let mapTool = 'anchor';
+let sandboxCounter = 1;
+let videoRecorder: MediaRecorder | null = null;
+let pendingActorDataUrl = '';
+let pendingActionMode: 'none' | 'arrow_start' | 'arrow_end' | 'pulse' = 'none';
+let arrowStartPt: Point | null = null;
+
+function showToast(msg: string) {
+  const box = document.getElementById('toastBar')!;
+  box.textContent = msg;
+  box.style.display = 'block';
+  setTimeout(() => (box.style.display = 'none'), 2800);
+}
+
+function refreshMapDropdown(selectedId?: string) {
+  mapSelect.innerHTML = '';
+  for (const m of Object.values(registry.maps)) {
+    const opt = document.createElement('option');
+    opt.value = m.id;
+    opt.textContent = m.title;
+    mapSelect.appendChild(opt);
+  }
+  if (selectedId && registry.maps[selectedId]) mapSelect.value = selectedId;
+}
+
+function refreshScenarioDropdown(selectedId?: string) {
+  scenarioSelect.innerHTML = '';
+  for (const s of registry.scenarios) {
+    const opt = document.createElement('option');
+    opt.value = s.id;
+    const tag = s.source === 'recorded' ? '[مسجّل] ' : s.source === 'code' ? '[محفوظ] ' : '';
+    opt.textContent = `${tag}${s.title} (${registry.maps[s.mapId]?.title ?? s.mapId})`;
+    scenarioSelect.appendChild(opt);
+  }
+  if (selectedId) scenarioSelect.value = selectedId;
+}
+
+function rebuildSandboxButtons() {
+  const bar = document.getElementById('sandboxBar')!;
+  bar.innerHTML = `<button data-tool="select" class="${activeTool === 'select' ? 'active' : ''}">تحديد / تحريك</button>`;
+  for (const act of Object.values(registry.actors)) {
+    bar.innerHTML += `<button data-tool="${act.id}" class="${activeTool === act.id ? 'active' : ''}">+ ${act.label}</button>`;
+  }
+  bar.querySelectorAll('button').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      activeTool = btn.getAttribute('data-tool')!;
+      pendingActionMode = 'none';
+      rebuildSandboxButtons();
+    });
+  });
+}
+
+function updateGeoHud(map: MapPack) {
+  const crumb = document.getElementById('geoBreadcrumb')!;
+  const backBtn = document.getElementById('backWorldBtn')!;
+  const drillBtn = document.getElementById('drillDownBtn')!;
+  drillBtn.style.display = 'none';
+  if (map.geoLevel === 'country') {
+    crumb.textContent = `🌍 العالم ◂ ${map.title}`;
+    backBtn.style.display = 'inline-block';
+  } else {
+    crumb.textContent = `🗺 ${map.title}`;
+    backBtn.style.display = 'none';
+  }
+}
+
+function attachEngineEvents(eng: StudioEngine) {
+  eng.onSound((id) => sound.play(id));
+  eng.onMoveBlocked((ent) => {
+    showToast(
+      ent.domain === 'land'
+        ? '⚠️ لا يوجد مسار بري متصل — الدبابات والمشاة لا تعبر البحر!'
+        : '⚠️ لا يوجد مسار بحري متصل — السفن لا تعبر اليابسة!'
+    );
+  });
+}
+
+async function openEmptyMapBoard(mapId: string) {
+  const map = registry.maps[mapId];
+  if (!map) return;
+  const blankScenario: ScenarioFile = { meta: { title: `لوح حر: ${map.title}`, map: map.id }, timeline: [] };
+  engine = new StudioEngine(map, registry.actors, blankScenario);
+  attachEngineEvents(engine);
+  await renderer.loadEngineAssets(engine);
+  updateGeoHud(map);
+  refreshMapDropdown(map.id);
+  await studioDb.setSetting('lastMapId', map.id);
+  await studioDb.setSetting('lastScenarioId', '');
+  scrubber.max = '600';
+  durLabel.textContent = '20.0s';
+}
+
+async function loadFromYaml(rawYaml: string, saveScenarioId?: string) {
+  statusBox.innerHTML = '';
+  try {
+    const parsed = yaml.load(rawYaml) as ScenarioFile;
+    const map = registry.maps[parsed?.meta?.map];
+    const issues = validateScenario(parsed, map, registry.actors);
+    if (issues.length > 0) {
+      statusBox.innerHTML = `<div class="err">${issues.map((i) => `• [${i.field}] ${i.message}`).join('<br>')}</div>`;
+      return false;
+    }
+    engine = new StudioEngine(map, registry.actors, parsed);
+    attachEngineEvents(engine);
+    await renderer.loadEngineAssets(engine);
+    updateGeoHud(map);
+    refreshMapDropdown(map.id);
+    const maxTicks = Math.ceil(engine.estimateDurationSec() * TICK_RATE);
+    scrubber.max = String(maxTicks);
+    durLabel.textContent = `${(maxTicks / TICK_RATE).toFixed(1)}s`;
+    await studioDb.setSetting('lastMapId', map.id);
+    if (saveScenarioId) await studioDb.setSetting('lastScenarioId', saveScenarioId);
+    return true;
+  } catch (err) {
+    statusBox.innerHTML = `<div class="err">خطأ YAML: ${(err as Error).message}</div>`;
+    return false;
+  }
+}
+
+async function enterCountryProvinces(regionId: string) {
+  if (!engine?.map.regions) return;
+  const reg = engine.map.regions[regionId];
+  if (!reg?.iso3) return;
+  const title = reg.nameAr ? `${reg.nameAr} (${reg.name})` : reg.name;
+  document.getElementById('geoHoverLabel')!.textContent = `⏳ جاري تحميل محافظات ${title}...`;
+  renderer.focusRegion(engine, regionId);
+
+  try {
+    const cachedId = `country_${reg.iso3.toLowerCase()}`;
+    let countryMap = registry.maps[cachedId];
+    if (!countryMap) {
+      countryMap = await buildCountryProvincesMapPack(reg.iso3, title);
+      await registry.saveCustomMap(countryMap);
+    }
+    refreshMapDropdown(countryMap.id);
+    await openEmptyMapBoard(countryMap.id);
+    document.getElementById('geoHoverLabel')!.textContent = `محافظات ${title} جاهزة — يمكنك التحريك أو تسجيل سيناريو الآن`;
+  } catch (err) {
+    showToast((err as Error).message);
+  }
+}
+
+// تهيئة التطبيق واسترجاع الحالة السابقة من IndexedDB
+await renderer.init(stageHost);
+const savedUnitScale = await studioDb.getSetting<number>('unitScale');
+if (savedUnitScale) {
+  renderer.userUnitScale = savedUnitScale;
+  unitScaleSlider.value = String(savedUnitScale);
+  unitScaleVal.textContent = `${savedUnitScale.toFixed(2)}x`;
+}
+
+refreshMapDropdown();
+refreshScenarioDropdown();
+rebuildSandboxButtons();
+
+const lastScenId = await studioDb.getSetting<string>('lastScenarioId');
+const lastMapId = await studioDb.getSetting<string>('lastMapId');
+const initialScen = lastScenId ? registry.scenarios.find((s) => s.id === lastScenId) : lastMapId === undefined ? registry.scenarios[0] : undefined;
+
+if (initialScen) {
+  scenarioSelect.value = initialScen.id;
+  yamlEditor.value = initialScen.yaml;
+  await loadFromYaml(initialScen.yaml, initialScen.id);
+} else if (lastMapId && registry.maps[lastMapId]) {
+  await openEmptyMapBoard(lastMapId);
+} else {
+  yamlEditor.value = worldYaml;
+  await loadFromYaml(worldYaml, 'preset_world');
+}
+
+// شريط ضبط حجم الآليات
+unitScaleSlider.addEventListener('input', async () => {
+  const val = parseFloat(unitScaleSlider.value);
+  renderer.userUnitScale = val;
+  unitScaleVal.textContent = `${val.toFixed(2)}x`;
+  await studioDb.setSetting('unitScale', val);
+});
+
+// تبديل الخريطة كبيئة مستقلة
+mapSelect.addEventListener('change', () => openEmptyMapBoard(mapSelect.value));
+document.getElementById('clearBoardBtn')!.addEventListener('click', () => openEmptyMapBoard(engine.map.id));
+
+// تشغيل/حذف السيناريو من السجل
+document.getElementById('loadScenarioBtn')!.addEventListener('click', async () => {
+  const rec = registry.scenarios.find((s) => s.id === scenarioSelect.value);
+  if (!rec) return;
+  yamlEditor.value = rec.yaml;
+  playing = true;
+  document.getElementById('playBtn')!.textContent = 'إيقاف مؤقت';
+  await loadFromYaml(rec.yaml, rec.id);
+});
+
+document.getElementById('delScenarioBtn')!.addEventListener('click', async () => {
+  const id = scenarioSelect.value;
+  if (!id) return;
+  await registry.deleteScenarioRecord(id);
+  refreshScenarioDropdown();
+  statusBox.innerHTML = `<div class="ok">تم حذف السيناريو من السجل</div>`;
+});
+
+document.getElementById('saveYamlBtn')!.addEventListener('click', async () => {
+  const raw = yamlEditor.value;
+  const ok = await loadFromYaml(raw);
+  if (!ok) return;
+  const parsed = yaml.load(raw) as ScenarioFile;
+  const title = prompt('أدخل اسمًا لحفظ السيناريو في السجل:', parsed.meta.title || 'سيناريو جديد');
+  if (!title) return;
+  const rec: SavedScenarioRecord = {
+    id: `scen_${Date.now()}`,
+    title,
+    mapId: parsed.meta.map,
+    yaml: raw,
+    source: 'code',
+    updatedAt: Date.now()
+  };
+  await registry.saveScenarioRecord(rec);
+  refreshScenarioDropdown(rec.id);
+  await studioDb.setSetting('lastScenarioId', rec.id);
+  statusBox.innerHTML = `<div class="ok">تم حفظ "${title}" في قاعدة البيانات!</div>`;
+});
+
+// مسجل السيناريو الحي
+const startActionRecBtn = document.getElementById('startActionRecBtn')!;
+const stopActionRecBtn = document.getElementById('stopActionRecBtn')!;
+const recQuickActions = document.getElementById('recQuickActions')!;
+const recTimer = document.getElementById('recTimer')!;
+const recorderPanel = document.getElementById('recorderPanel')!;
+
+startActionRecBtn.addEventListener('click', async () => {
+  await openEmptyMapBoard(engine.map.id);
+  sandboxCounter = 1;
+  actionRecorder.start(engine.map.id, renderer.getCameraState());
+  startActionRecBtn.style.display = 'none';
+  stopActionRecBtn.style.display = 'inline-block';
+  recQuickActions.style.display = 'flex';
+  recTimer.style.display = 'inline';
+  recorderPanel.classList.add('rec-box');
+});
+
+stopActionRecBtn.addEventListener('click', async () => {
+  actionRecorder.stop();
+  startActionRecBtn.style.display = 'inline-block';
+  stopActionRecBtn.style.display = 'none';
+  recQuickActions.style.display = 'none';
+  recTimer.style.display = 'none';
+  recorderPanel.classList.remove('rec-box');
+
+  const title = prompt('اسم السيناريو المسجّل لحفظه وإعادة تشغيله:', `سيناريو مسجّل (${engine.map.title})`);
+  if (!title) return;
+  const generatedYaml = actionRecorder.toYaml(title);
+  yamlEditor.value = generatedYaml;
+
+  const rec: SavedScenarioRecord = {
+    id: `rec_${Date.now()}`,
+    title,
+    mapId: engine.map.id,
+    yaml: generatedYaml,
+    source: 'recorded',
+    updatedAt: Date.now()
+  };
+  await registry.saveScenarioRecord(rec);
+  refreshScenarioDropdown(rec.id);
+  await loadFromYaml(generatedYaml, rec.id);
+  statusBox.innerHTML = `<div class="ok">تم حفظ "${title}" بـ ${actionRecorder.steps.length} خطوة في قاعدة البيانات!</div>`;
+});
+
+document.getElementById('recCamBtn')!.addEventListener('click', () => {
+  const c = renderer.getCameraState();
+  actionRecorder.recordCamera(c.x, c.y, c.zoom);
+  showToast('📷 تم تسجيل لقطة الكاميرا الحالية');
+});
+
+document.getElementById('recCaptionBtn')!.addEventListener('click', () => {
+  const txt = prompt('أدخل نص الشرح الذي يظهر أسفل الشاشة:');
+  if (!txt) return;
+  engine.caption = txt;
+  actionRecorder.recordCaption(txt);
+});
+
+document.getElementById('recZoneBtn')!.addEventListener('click', () => {
+  if (!renderer.selectedRegionId || !engine.zones.has(renderer.selectedRegionId)) {
+    showToast('حدد دولة أو محافظة أولًا ثم اضغط تلوين');
+    return;
+  }
+  const z = engine.zones.get(renderer.selectedRegionId)!;
+  z.color = '#ef4444';
+  z.targetOpacity = 0.38;
+  z.opacity = 0.38;
+  actionRecorder.recordZone(z.id, '#ef4444', 0.38);
+});
+
+document.getElementById('recArrowBtn')!.addEventListener('click', () => {
+  pendingActionMode = 'arrow_start';
+  showToast('اضغط نقطة بداية السهم ثم نقطة نهايته على الخريطة');
+});
+
+document.getElementById('recPulseBtn')!.addEventListener('click', () => {
+  pendingActionMode = 'pulse';
+  showToast('اضغط على الخريطة لوضع موجة تنبيه');
+});
+
+document.getElementById('recDelUnitBtn')!.addEventListener('click', () => {
+  if (!renderer.selectedEntityId) return;
+  engine.dispatchOrder({ type: 'remove', entityId: renderer.selectedEntityId });
+  actionRecorder.recordRemove(renderer.selectedEntityId);
+  renderer.selectedEntityId = null;
+});
+
+// تفاعلات الخريطة (اللعب الحر + التسجيل + التحديد + صانع الخرائط)
+renderer.onMapClick = (pt, hitId) => {
+  if (!engine) return;
+
+  if (renderer.editorOverlay.enabled) {
+    if (mapTool === 'anchor') {
+      const rawName = (document.getElementById('pointNameInput') as HTMLInputElement).value.trim() || `pt_${Object.keys(engine.map.anchors).length + 1}`;
+      engine.map.anchors[rawName] = { x: Math.round(pt.x), y: Math.round(pt.y), label: rawName };
+      renderer.refreshAnchors(engine.map);
+      packStatusBox.innerHTML = `<div class="ok">تمت إضافة المرسى: ${rawName}</div>`;
+    } else if (mapTool === 'zone') {
+      renderer.editorOverlay.draftZonePoints.push({ x: Math.round(pt.x), y: Math.round(pt.y) });
+    } else {
+      renderer.onMapPaint?.(pt);
+    }
+    return;
+  }
+
+  if (pendingActionMode === 'arrow_start') {
+    arrowStartPt = pt;
+    pendingActionMode = 'arrow_end';
+    showToast('الآن اضغط نقطة نهاية السهم');
+    return;
+  }
+  if (pendingActionMode === 'arrow_end' && arrowStartPt) {
+    const id = `arr_${Date.now()}`;
+    engine.arrows.set(id, { id, from: arrowStartPt, to: pt, color: '#f59e0b', dashed: true, progress: 0, rate: 0.8 });
+    actionRecorder.recordArrow(id, arrowStartPt, pt, '#f59e0b', true);
+    pendingActionMode = 'none';
+    arrowStartPt = null;
+    return;
+  }
+  if (pendingActionMode === 'pulse') {
+    engine.pulses.push({ x: pt.x, y: pt.y, color: '#ef4444', maxRadius: 70, progress: 0 });
+    actionRecorder.recordPulse(pt, '#ef4444');
+    pendingActionMode = 'none';
+    return;
+  }
+
+  if (activeTool === 'select') {
+    if (hitId) {
+      renderer.selectedEntityId = hitId;
+    } else if (renderer.selectedEntityId) {
+      engine.dispatchOrder({ type: 'move', entityId: renderer.selectedEntityId, to: pt });
+      actionRecorder.recordMove(renderer.selectedEntityId, pt);
+    } else if (engine.map.hitTest) {
+      const regId = engine.map.hitTest(pt);
+      renderer.selectedRegionId = regId;
+      const drillBtn = document.getElementById('drillDownBtn')!;
+      if (regId && engine.map.geoLevel === 'world' && engine.map.regions?.[regId]) {
+        const r = engine.map.regions[regId];
+        drillBtn.textContent = `دخول إلى محافظات ${r.nameAr ?? r.name} ↗`;
+        drillBtn.style.display = 'inline-block';
+      } else {
+        drillBtn.style.display = 'none';
+      }
+    }
+  } else {
+    const act = registry.actors[activeTool];
+    const id = `sb_${sandboxCounter++}`;
+    if (act.kind === 'building') {
+      engine.dispatchOrder({ type: 'construct', id, actorId: act.id, at: pt, faction: 'blue', durationSec: 1.8 });
+      actionRecorder.recordConstruct(id, act.id, pt, 'blue', 1.8);
+    } else {
+      engine.dispatchOrder({ type: 'spawn', id, actorId: act.id, at: pt, faction: 'blue' });
+      actionRecorder.recordSpawn(id, act.id, pt, 'blue');
+      renderer.selectedEntityId = id;
+    }
+  }
+};
+
+renderer.onRegionHover = (regionId) => {
+  const lbl = document.getElementById('geoHoverLabel')!;
+  if (!regionId || !engine?.map.regions?.[regionId]) {
+    lbl.textContent = engine?.map.geoLevel === 'world' ? 'مرّر على دولة للتحديد، وانقر مرتين للدخول للمحافظات' : 'مرّر على محافظة لتحديدها';
+    return;
+  }
+  const r = engine.map.regions[regionId];
+  lbl.textContent = r.nameAr ? `${r.nameAr} (${r.name})` : r.name;
+};
+
+renderer.onRegionDoubleClick = async (regionId) => {
+  if (engine?.map.geoLevel === 'world') await enterCountryProvinces(regionId);
+};
+
+document.getElementById('drillDownBtn')!.addEventListener('click', () => {
+  if (renderer.selectedRegionId) enterCountryProvinces(renderer.selectedRegionId);
+});
+
+document.getElementById('backWorldBtn')!.addEventListener('click', () => openEmptyMapBoard('world_live'));
+
+// تبويب صانع الحزم
+const tabPlay = document.getElementById('tabPlay')!;
+const tabPack = document.getElementById('tabPack')!;
+const viewPlay = document.getElementById('viewPlay')!;
+const viewPack = document.getElementById('viewPack')!;
+
+tabPlay.addEventListener('click', () => {
+  tabPlay.classList.add('active');
+  tabPack.classList.remove('active');
+  viewPlay.style.display = 'flex';
+  viewPack.style.display = 'none';
+  renderer.editorOverlay.enabled = false;
+  renderer.editorOverlay.showNavGrid = false;
+});
+
+tabPack.addEventListener('click', () => {
+  tabPack.classList.add('active');
+  tabPlay.classList.remove('active');
+  viewPack.style.display = 'flex';
+  viewPlay.style.display = 'none';
+  renderer.editorOverlay.enabled = true;
+  renderer.editorOverlay.showNavGrid = mapTool.startsWith('paint_');
+});
+
+document.querySelectorAll('#mapToolBar button').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#mapToolBar button').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    mapTool = btn.getAttribute('data-mtool')!;
+    renderer.editorOverlay.showNavGrid = mapTool.startsWith('paint_');
+  });
+});
+
+function paintNavCell(pt: Point, cellVal: NavCell) {
+  if (!engine) return;
+  const gx = Math.floor(pt.x / engine.map.cellSize);
+  const gy = Math.floor(pt.y / engine.map.cellSize);
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const nx = gx + dx, ny = gy + dy;
+      if (nx >= 0 && ny >= 0 && nx < engine.map.cols && ny < engine.map.rows) {
+        engine.map.navGrid[ny * engine.map.cols + nx] = cellVal;
+      }
+    }
+  }
+}
+
+renderer.onMapPaint = (pt) => {
+  if (mapTool === 'paint_land') paintNavCell(pt, 0);
+  if (mapTool === 'paint_sea') paintNavCell(pt, 1);
+  if (mapTool === 'paint_block') paintNavCell(pt, 2);
+};
+
+document.getElementById('finishZoneBtn')!.addEventListener('click', () => {
+  if (!engine || renderer.editorOverlay.draftZonePoints.length < 3) return;
+  const zId = (document.getElementById('pointNameInput') as HTMLInputElement).value.trim() || `zone_${Object.keys(engine.map.zones).length + 1}`;
+  engine.map.zones[zId] = { id: zId, label: zId, polygon: [...renderer.editorOverlay.draftZonePoints] };
+  engine.zones.set(zId, { id: zId, color: '#22c55e', targetOpacity: 0.3, opacity: 0.3, rate: 1 });
+  renderer.editorOverlay.draftZonePoints = [];
+  packStatusBox.innerHTML = `<div class="ok">تم حفظ المنطقة: ${zId}</div>`;
+});
+
+document.getElementById('mapImageInput')!.addEventListener('change', (e) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async () => {
+    const newId = (document.getElementById('newMapId') as HTMLInputElement).value.trim() || `custom_map_${Date.now()}`;
+    const cols = 60, rows = 40, cellSize = 20;
+    const newMap: MapPack = {
+      id: newId,
+      title: newId,
+      kind: 'geopolitical',
+      width: cols * cellSize,
+      height: rows * cellSize,
+      cellSize,
+      cols,
+      rows,
+      navGrid: new Array(cols * rows).fill(0),
+      svgOrUrl: reader.result as string,
+      unitScaleMultiplier: 0.85,
+      anchors: {},
+      zones: {}
+    };
+    await registry.saveCustomMap(newMap);
+    refreshMapDropdown(newId);
+    await openEmptyMapBoard(newId);
+    packStatusBox.innerHTML = `<div class="ok">تم تحميل وحفظ الخريطة "${newId}"</div>`;
+  };
+  reader.readAsDataURL(file);
+});
+
+document.getElementById('saveMapBtn')!.addEventListener('click', async () => {
+  if (!engine) return;
+  await registry.saveCustomMap(engine.map);
+  refreshMapDropdown(engine.map.id);
+  packStatusBox.innerHTML = `<div class="ok">تم حفظ الخريطة "${engine.map.id}" في قاعدة البيانات</div>`;
+});
+
+document.getElementById('actorImgInput')!.addEventListener('change', (e) => {
+  const file = (e.target as HTMLInputElement).files?.[0];
+  if (!file) return;
+  const r = new FileReader();
+  r.onload = () => (pendingActorDataUrl = r.result as string);
+  r.readAsDataURL(file);
+});
+
+document.getElementById('saveActorBtn')!.addEventListener('click', async () => {
+  const id = (document.getElementById('newActorId') as HTMLInputElement).value.trim();
+  const label = (document.getElementById('newActorLabel') as HTMLInputElement).value.trim() || id;
+  const tpl = (document.getElementById('newActorTpl') as HTMLSelectElement).value;
+  if (!id || !pendingActorDataUrl) {
+    packStatusBox.innerHTML = `<div class="err">أدخل معرّف الكيان وارفع صورته أولًا</div>`;
+    return;
+  }
+  await registry.saveCustomActor({ id, label, extends: tpl, svg: pendingActorDataUrl } as never);
+  rebuildSandboxButtons();
+  await renderer.loadEngineAssets(engine);
+  packStatusBox.innerHTML = `<div class="ok">تم حفظ الكيان "${id}" في قاعدة البيانات</div>`;
+});
+
+document.getElementById('exportPackBtn')!.addEventListener('click', () => {
+  const dump = yaml.dump(registry.exportCurrentBundle());
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([dump], { type: 'text/yaml' }));
+  a.download = 'studio-bundle.pack.yaml';
+  a.click();
+});
+
+// الذكاء الاصطناعي والـ YAML
+document.getElementById('copyCatalogBtn')!.addEventListener('click', async () => {
+  await navigator.clipboard.writeText(generateCatalogMarkdown(registry.maps, registry.actors));
+  statusBox.innerHTML = `<div class="ok">تم نسخ CATALOG.md</div>`;
+});
+
+document.getElementById('copyPromptBtn')!.addEventListener('click', async () => {
+  const topic = (document.getElementById('aiTopic') as HTMLInputElement).value.trim() || `سيناريو على خريطة ${engine.map.title}`;
+  await navigator.clipboard.writeText(buildAiScenarioPrompt(registry.maps, registry.actors, topic));
+  statusBox.innerHTML = `<div class="ok">تم نسخ Prompt + الفهرس الكامل للخرائط والمحافظات</div>`;
+});
+
+document.getElementById('applyBtn')!.addEventListener('click', () => loadFromYaml(yamlEditor.value));
+
+// التشغيل والزمن والفيديو
+scrubber.addEventListener('input', () => {
+  if (!engine) return;
+  playing = false;
+  document.getElementById('playBtn')!.textContent = 'تشغيل';
+  engine.seekToTick(parseInt(scrubber.value, 10));
+  renderer.syncCameraImmediate(engine);
+});
+
+const playBtn = document.getElementById('playBtn')!;
+playBtn.addEventListener('click', () => {
+  playing = !playing;
+  playBtn.textContent = playing ? 'إيقاف مؤقت' : 'تشغيل';
+});
+
+document.getElementById('restartBtn')!.addEventListener('click', () => engine?.reset());
+document.getElementById('speedSelect')!.addEventListener('change', (e) => {
+  speed = parseFloat((e.target as HTMLSelectElement).value);
+});
+
+stageHost.addEventListener('dragover', (e) => e.preventDefault());
+stageHost.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer?.files[0];
+  if (!file) return;
+  const text = await file.text();
+  if (file.name.endsWith('.pack.yaml') || file.name.endsWith('.pack.yml')) {
+    const res = await registry.importBundle(yaml.load(text) as PackBundle);
+    refreshMapDropdown();
+    rebuildSandboxButtons();
+    statusBox.innerHTML = `<div class="ok">تم استيراد ${res.mapsAdded} خريطة و ${res.actorsAdded} كيان</div>`;
+  } else if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
+    yamlEditor.value = text;
+    await loadFromYaml(text);
+  }
+});
+
+const recVideoBtn = document.getElementById('recVideoBtn')!;
+recVideoBtn.addEventListener('click', () => {
+  if (videoRecorder && videoRecorder.state === 'recording') {
+    videoRecorder.stop();
+    return;
+  }
+  const vStream = renderer.app.canvas.captureStream(30);
+  const aStream = sound.getAudioStream();
+  const combined = new MediaStream([...vStream.getVideoTracks(), ...(aStream ? aStream.getAudioTracks() : [])]);
+  const chunks: Blob[] = [];
+  videoRecorder = new MediaRecorder(combined, { mimeType: 'video/webm' });
+  videoRecorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  videoRecorder.onstop = () => {
+    renderer.hideUIHelpers = false;
+    recVideoBtn.textContent = 'تصوير WebM';
+    recVideoBtn.classList.remove('danger');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+    a.download = 'studio-export.webm';
+    a.click();
+  };
+  renderer.hideUIHelpers = true;
+  videoRecorder.start();
+  recVideoBtn.textContent = 'إيقاف وحفظ الفيديو';
+  recVideoBtn.classList.add('danger');
+});
+
+let accumulator = 0;
+let lastTime = performance.now();
+function loop(now: number) {
+  const frameDt = Math.min(0.1, (now - lastTime) / 1000);
+  lastTime = now;
+
+  if (engine && playing) {
+    accumulator += frameDt * speed;
+    while (accumulator >= DT) {
+      engine.step();
+      accumulator -= DT;
+    }
+  }
+
+  if (actionRecorder.isRecording) {
+    document.getElementById('recClock')!.textContent = `${actionRecorder.elapsedSec().toFixed(1)}s`;
+    document.getElementById('recCount')!.textContent = String(actionRecorder.steps.length);
+  }
+
+  if (engine) {
+    const alpha = playing ? accumulator / DT : 1;
+    renderer.render(engine, alpha, now / 1000);
+    captionBar.style.display = engine.caption ? 'block' : 'none';
+    captionBar.textContent = engine.caption;
+    if (playing) {
+      scrubber.value = String(Math.min(parseInt(scrubber.max, 10), engine.tick));
+      timeLabel.textContent = `${(engine.tick * DT).toFixed(1)}s`;
+    }
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+```
+
+---
+
+## كيف تختبر كل ميزة في التحديث الخامس الآن؟
+
+1. **تناسب حجم الآليات:**
+   - افتح خريطة العالم أو ادخل لمحافظات أي دولة: ستجد الدبابات والسفن والمباني أصبحت بأحجام دقيقة متناسقة مع الدول، ومع ذلك يمكنك سحب شريط **"حجم الآليات"** لتكبيرها أو تصغيرها في أي لحظة.
+2. **الخريطة كبيئة مستقلة:**
+   - من قائمة **"البيئة / الخريطة الحالية"** اختر أي خريطة، أو ادخل لمحافظات أي دولة، أو اضغط **"لوح فارغ"** للبدء من الصفر على الخريطة.
+3. **تسجيل سيناريو بالتحركات اليدوية:**
+   - اضغط **"🔴 بدء تسجيل سيناريو حي"** ← ضع دبابات ومبانٍ، حرّكها، التقط لقطة كاميرا (`📷`)، لوّن دولة (`🎨`)، أضف شرحًا (`💬`) ← ثم اضغط **"⏹ إيقاف وحفظ في السجل"**.
+   - سينتج ملف YAML كامل لخطواتك ويُحفظ في **"سجل السيناريوهات المحفوظة"**.
+4. **اختبار الذاكرة الدائمة (`IndexedDB`):**
+   - حدّث الصفحة (`F5`): ستجد السيناريوهات التي سجّلتها أو كتبتها، والخرائط والدول التي فتحتها، ومستوى حجم الآليات — كلها باقية تمامًا كما تركتها!
+
+هل ترغب أن نضيف في التحديث القادم **دعم الوحدات المتحاربة والذكاء التكتيكي (قوات زرقاء ضد حمراء، اشتباك تلقائي، وسيطرة على المحافظات عند الوصول)** أم **تضمين خيارات أكثر للسيناريو (مثل تعدد المعلقين الصوتيين / TTS أو تصدير وإعادة استيراد قاعدة البيانات كاملة كملف واحد)**؟

@@ -1,0 +1,1006 @@
+في **التحديث الثالث** نضيف قلب الجغرافيا الحية إلى الاستوديو: **خريطة العالم الحقيقية + خرائط الدول ومحافظاتها (ADM1)** مرسومة بنفس الستايل الهندسي الداكن المتوهج للاستوديو، مع **نظام ملاحة حقيقي** يمنع الدبابات والمشاة من عبور البحار والمحيطات، ويحصر السفن في الممرات البحرية.
+
+### ما الجديد في التحديث الثالث؟
+1. **خريطة العالم التفاعلية الحقيقية (`world_live`):** مبنية على بيانات Natural Earth (`world-atlas`) بـ 177 دولة، مع أسماء عربية وإنجليزية، وخطوط الطول والعرض، وسواحل متوهجة.
+2. **التحديد والتوسيع والدخول للمحافظات (Drill-Down):**
+   - تمرير الماوس على أي دولة يبرز حدودها ويُظهر اسمها.
+   - النقر يحدد الدولة، و**النقر المزدوج** (أو زر **"دخول إلى المحافظات ↗"**) ينقلك بسلاسة إلى خريطة تلك الدولة مقسمة إلى **محافظاتها ومناطقها الإدارية الحقيقية** (عبر `geoBoundaries ADM1`).
+   - تتحول كل محافظة تلقائيًا إلى `Zone` قابلة للتلوين و`Anchor` مسمّى جاهز للسيناريو والذكاء الاصطناعي.
+3. **فيزياء ملاحة جغرافية صارمة وذكية (`Binary-Heap A*` + قناع يابسة/بحر تلقائي):**
+   - تُولَّد شبكة الملاحة (`navGrid`) رياضيًا من حدود اليابسة والمحيطات والمحافظات في أجزاء من الثانية.
+   - الدبابات والمشاة تسلك اليابسة فقط (وتُظهر تنبيهًا إذا حاولت إرسالها عبر البحر)، والسفن تبحر في البحار والمضائق العالمية المفتوحة (السويس، باب المندب، هرمز، جبل طارق) ولا تتسلق اليابسة!
+
+---
+
+## 1) تحديث الاعتماديات والإعدادات
+
+### `package.json` (حدّث قسم `dependencies` و `devDependencies`)
+```json
+{
+  "name": "rw-studio-mvp",
+  "private": true,
+  "version": "0.3.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build"
+  },
+  "dependencies": {
+    "d3-geo": "^3.1.1",
+    "i18n-iso-countries": "^7.14.0",
+    "js-yaml": "^4.1.0",
+    "pixi.js": "^8.12.0",
+    "topojson-client": "^3.1.0",
+    "world-atlas": "^2.0.2"
+  },
+  "devDependencies": {
+    "@types/d3-geo": "^3.1.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/topojson-client": "^3.1.0",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}
+```
+*(بعد تحديث `package.json` شغّل `npm install`)*
+
+### `tsconfig.json` (أضف `resolveJsonModule`)
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}
+```
+
+### `src/types-external.d.ts` (ملف جديد لتعريف حزم الخرائط)
+```ts
+/// <reference types="vite/client" />
+declare module 'world-atlas/*.json' {
+  const value: unknown;
+  export default value;
+}
+```
+
+---
+
+## 2) ترقية الأنواع، خوارزمية المسار الصارمة، والمحرك (`src/core/`)
+
+### `src/core/types.ts` (أضف واجهة `GeoRegionItem` وحقولها في `MapPack`)
+أضف هذا التعريف داخل `src/core/types.ts`:
+```ts
+export interface GeoRegionItem {
+  id: string;
+  iso3?: string;
+  name: string;
+  nameAr?: string;
+  center: Point;
+  bounds: { minX: number; minY: number; maxX: number; maxY: number };
+  polygons: Point[][];
+}
+```
+وحدّث `MapPack` لتشمل خصائص التفاعل الجغرافي الاختيارية:
+```ts
+export interface MapPack {
+  id: string;
+  title: string;
+  kind: 'geopolitical' | 'tactical';
+  width: number;
+  height: number;
+  cellSize: number;
+  cols: number;
+  rows: number;
+  navGrid: NavCell[];
+  svgOrUrl: string;
+  anchors: Record<string, Point & { label?: string }>;
+  zones: Record<string, MapZoneDef>;
+  // إضافات الخريطة التفاعلية الحية
+  geoLevel?: 'world' | 'country';
+  countryIso3?: string;
+  regions?: Record<string, GeoRegionItem>;
+  hitTest?: (worldPt: Point) => string | null;
+}
+```
+
+### `src/core/pathfinding.ts` (ترقية إلى Min-Heap سريعة + منع عبور الدبابات للبحر)
+```ts
+import { Domain, MapPack, NavCell, Point } from './types';
+
+function isWalkable(cell: NavCell, domain: Domain): boolean {
+  if (domain === 'air') return true;
+  if (domain === 'land') return cell === 0;
+  if (domain === 'sea') return cell === 1;
+  return false;
+}
+
+function findNearestWalkable(map: MapPack, gx: number, gy: number, domain: Domain, maxRadius: number): [number, number] | null {
+  const clamp = (v: number, max: number) => Math.max(0, Math.min(max - 1, v));
+  const sx = clamp(gx, map.cols);
+  const sy = clamp(gy, map.rows);
+  if (isWalkable(map.navGrid[sy * map.cols + sx], domain)) return [sx, sy];
+
+  for (let r = 1; r <= maxRadius; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const nx = sx + dx;
+        const ny = sy + dy;
+        if (nx >= 0 && ny >= 0 && nx < map.cols && ny < map.rows) {
+          if (isWalkable(map.navGrid[ny * map.cols + nx], domain)) return [nx, ny];
+        }
+      }
+    }
+  }
+  return null;
+}
+
+class MinHeap {
+  private data: number[] = [];
+  constructor(private score: Float32Array) {}
+  get size() {
+    return this.data.length;
+  }
+  push(node: number) {
+    this.data.push(node);
+    let i = this.data.length - 1;
+    while (i > 0) {
+      const p = (i - 1) >> 1;
+      if (this.score[this.data[p]] <= this.score[this.data[i]]) break;
+      [this.data[p], this.data[i]] = [this.data[i], this.data[p]];
+      i = p;
+    }
+  }
+  pop(): number {
+    const top = this.data[0];
+    const last = this.data.pop()!;
+    if (this.data.length > 0) {
+      this.data[0] = last;
+      let i = 0;
+      const n = this.data.length;
+      while (true) {
+        let smallest = i;
+        const l = i * 2 + 1;
+        const r = l + 1;
+        if (l < n && this.score[this.data[l]] < this.score[this.data[smallest]]) smallest = l;
+        if (r < n && this.score[this.data[r]] < this.score[this.data[smallest]]) smallest = r;
+        if (smallest === i) break;
+        [this.data[i], this.data[smallest]] = [this.data[smallest], this.data[i]];
+        i = smallest;
+      }
+    }
+    return top;
+  }
+}
+
+export function findPath(map: MapPack, from: Point, to: Point, domain: Domain): Point[] {
+  if (domain === 'air') return [to];
+
+  const startRaw: [number, number] = [Math.floor(from.x / map.cellSize), Math.floor(from.y / map.cellSize)];
+  const endRaw: [number, number] = [Math.floor(to.x / map.cellSize), Math.floor(to.y / map.cellSize)];
+
+  const start = findNearestWalkable(map, startRaw[0], startRaw[1], domain, 4);
+  // للهدف: نسمح بالتقاط الساحل القريب جدًا فقط (خليتين)، أما وسط البحر للدبابة فيُرفض!
+  const goal = findNearestWalkable(map, endRaw[0], endRaw[1], domain, 2);
+  if (!start || !goal) return [];
+
+  const total = map.cols * map.rows;
+  const gScore = new Float32Array(total).fill(Infinity);
+  const fScore = new Float32Array(total).fill(Infinity);
+  const cameFrom = new Int32Array(total).fill(-1);
+  const closed = new Uint8Array(total);
+  const inOpen = new Uint8Array(total);
+  const heap = new MinHeap(fScore);
+
+  const idx = (x: number, y: number) => y * map.cols + x;
+  const sIdx = idx(start[0], start[1]);
+  const gIdx = idx(goal[0], goal[1]);
+
+  gScore[sIdx] = 0;
+  fScore[sIdx] = Math.hypot(goal[0] - start[0], goal[1] - start[1]);
+  heap.push(sIdx);
+  inOpen[sIdx] = 1;
+
+  const dirs = [
+    [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
+    [1, 1, 1.414], [-1, 1, 1.414], [1, -1, 1.414], [-1, -1, 1.414]
+  ];
+
+  while (heap.size > 0) {
+    const curr = heap.pop();
+    if (curr === gIdx) {
+      const pts: Point[] = [];
+      let c = curr;
+      while (c !== -1 && c !== sIdx) {
+        const cx = c % map.cols;
+        const cy = Math.floor(c / map.cols);
+        pts.push({ x: (cx + 0.5) * map.cellSize, y: (cy + 0.5) * map.cellSize });
+        c = cameFrom[c];
+      }
+      pts.reverse();
+      if (pts.length > 0 && isWalkable(map.navGrid[idx(Math.max(0, Math.min(map.cols - 1, endRaw[0])), Math.max(0, Math.min(map.rows - 1, endRaw[1])))], domain)) {
+        pts[pts.length - 1] = { ...to };
+      }
+      return pts;
+    }
+
+    closed[curr] = 1;
+    const cx = curr % map.cols;
+    const cy = Math.floor(curr / map.cols);
+
+    for (const [dx, dy, cost] of dirs) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= map.cols || ny >= map.rows) continue;
+      const nIdx = idx(nx, ny);
+      if (closed[nIdx] || !isWalkable(map.navGrid[nIdx], domain)) continue;
+      if (dx !== 0 && dy !== 0) {
+        if (!isWalkable(map.navGrid[idx(cx + dx, cy)], domain) || !isWalkable(map.navGrid[idx(cx, cy + dy)], domain)) {
+          continue;
+        }
+      }
+      const tentative = gScore[curr] + cost;
+      if (tentative < gScore[nIdx]) {
+        cameFrom[nIdx] = curr;
+        gScore[nIdx] = tentative;
+        fScore[nIdx] = tentative + Math.hypot(goal[0] - nx, goal[1] - ny);
+        if (!inOpen[nIdx]) {
+          heap.push(nIdx);
+          inOpen[nIdx] = 1;
+        }
+      }
+    }
+  }
+  return []; // لا يوجد مسار متصل (مثلاً بين قارتين عبر البحر)
+}
+```
+
+### `src/core/engine.ts` (إضافة إشعار عند رفض المسار غير الصالح)
+أضف في `StudioEngine` مستمعًا لرفض الحركة:
+```ts
+  private blockedListeners: Array<(entity: EntityState) => void> = [];
+
+  onMoveBlocked(cb: (entity: EntityState) => void): void {
+    this.blockedListeners.push(cb);
+  }
+```
+وفي `processOrders()` عند `ord.type === 'move'`:
+```ts
+      } else if (ord.type === 'move') {
+        const ent = this.entities.get(ord.entityId);
+        if (!ent || ent.kind === 'building') continue;
+        const path = findPath(this.map, { x: ent.x, y: ent.y }, ord.to, ent.domain);
+        if (path.length === 0) {
+          if (!this.silent) this.blockedListeners.forEach((cb) => cb(ent));
+          continue;
+        }
+        ent.arrivedTick = null;
+        ent.path = path;
+        this.emitSound('move_order');
+      }
+```
+*(وأيضًا عند `spawn` أو `construct` لكيان بري في وسط البحر، يمكنك في `main.ts` أو داخل `processOrders` فحص `navGrid` لعدم السماح ببناء مبنى بري في وسط المحيط!)*
+
+---
+
+## 3) محرك خريطة العالم والدول والمحافظات (`src/maps/worldGeoEngine.ts`)
+
+هذا الملف الجديد يبني خريطة العالم من `world-atlas` ويجلب محافظات أي دولة تضغط عليها من `geoBoundaries`، ويرسمها بنفس الأسلوب الهندسي المتناسق للاستوديو، ويولّد شبكة الملاحة وخريطة التصادم الفورية.
+
+```ts
+import { geoCentroid, geoGraticule10, geoMercator, geoNaturalEarth1, geoPath, GeoProjection } from 'd3-geo';
+import countries from 'i18n-iso-countries';
+import arLocale from 'i18n-iso-countries/langs/ar.json';
+import enLocale from 'i18n-iso-countries/langs/en.json';
+import { feature, mesh } from 'topojson-client';
+import worldAtlas from 'world-atlas/countries-110m.json';
+import { GeoRegionItem, MapPack, MapZoneDef, NavCell, Point } from '../core/types';
+
+countries.registerLocale(arLocale);
+countries.registerLocale(enLocale);
+
+const adm1Cache = new Map<string, GeoJSON.FeatureCollection>();
+
+function slugify(s: string): string {
+  return s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '') || 'region';
+}
+
+function extractProjectedPolygons(
+  geometry: GeoJSON.Geometry,
+  projection: GeoProjection,
+  mapWidth: number
+): Point[][] {
+  const result: Point[][] = [];
+  const projectRing = (ring: number[][]) => {
+    let segment: Point[] = [];
+    let prev: Point | null = null;
+    for (const coord of ring) {
+      const p = projection([coord[0], coord[1]]);
+      if (!p || !Number.isFinite(p[0]) || !Number.isFinite(p[1])) continue;
+      const pt = { x: p[0], y: p[1] };
+      if (prev && Math.abs(pt.x - prev.x) > mapWidth * 0.45) {
+        if (segment.length >= 3) result.push(segment);
+        segment = [];
+      }
+      segment.push(pt);
+      prev = pt;
+    }
+    if (segment.length >= 3) result.push(segment);
+  };
+
+  if (geometry.type === 'Polygon') {
+    if (geometry.coordinates[0]) projectRing(geometry.coordinates[0]);
+  } else if (geometry.type === 'MultiPolygon') {
+    for (const poly of geometry.coordinates) {
+      if (poly[0]) projectRing(poly[0]);
+    }
+  }
+  return result;
+}
+
+function createHitTester(
+  features: GeoJSON.Feature[],
+  regionIds: string[],
+  projection: GeoProjection,
+  mapWidth: number,
+  mapHeight: number
+): (pt: Point) => string | null {
+  const scale = 0.5;
+  const hw = Math.floor(mapWidth * scale);
+  const hh = Math.floor(mapHeight * scale);
+  const hitCanvas = document.createElement('canvas');
+  hitCanvas.width = hw;
+  hitCanvas.height = hh;
+  const ctx = hitCanvas.getContext('2d', { willReadFrequently: true })!;
+  ctx.scale(scale, scale);
+
+  const pathGen = geoPath(projection, ctx);
+  features.forEach((f, idx) => {
+    const colorNum = idx + 1;
+    const r = (colorNum >> 16) & 255;
+    const g = (colorNum >> 8) & 255;
+    const b = colorNum & 255;
+    ctx.beginPath();
+    pathGen(f);
+    ctx.fillStyle = `rgb(${r},${g},${b})`;
+    ctx.fill();
+  });
+
+  return (pt: Point) => {
+    const x = Math.floor(pt.x * scale);
+    const y = Math.floor(pt.y * scale);
+    if (x < 0 || y < 0 || x >= hw || y >= hh) return null;
+    const d = ctx.getImageData(x, y, 1, 1).data;
+    if (d[3] < 128) return null;
+    const idx = (d[0] << 16) | (d[1] << 8) | d[2];
+    return idx > 0 ? regionIds[idx - 1] ?? null : null;
+  };
+}
+
+function rasterizeLandNavGrid(
+  landGeo: GeoJSON.GeoJsonObject,
+  projection: GeoProjection,
+  width: number,
+  height: number,
+  cellSize: number
+): { cols: number; rows: number; navGrid: NavCell[] } {
+  const cols = Math.floor(width / cellSize);
+  const rows = Math.floor(height / cellSize);
+  const navCanvas = document.createElement('canvas');
+  navCanvas.width = cols;
+  navCanvas.height = rows;
+  const ctx = navCanvas.getContext('2d')!;
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, cols, rows);
+
+  ctx.save();
+  ctx.scale(cols / width, rows / height);
+  const pathGen = geoPath(projection, ctx);
+  ctx.beginPath();
+  pathGen(landGeo);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
+  ctx.lineWidth = cellSize * 0.6;
+  ctx.strokeStyle = '#ffffff';
+  ctx.stroke();
+  ctx.restore();
+
+  const pixels = ctx.getImageData(0, 0, cols, rows).data;
+  const navGrid: NavCell[] = new Array(cols * rows).fill(1); // 1 = بحر
+  for (let i = 0; i < cols * rows; i++) {
+    if (pixels[i * 4] > 90) navGrid[i] = 0; // 0 = يابسة
+  }
+  return { cols, rows, navGrid };
+}
+
+function openMaritimePassage(
+  navGrid: NavCell[],
+  cols: number,
+  rows: number,
+  projection: GeoProjection,
+  cellSize: number,
+  lonLat: [number, number],
+  radiusCells = 1
+) {
+  const p = projection(lonLat);
+  if (!p) return;
+  const gx = Math.floor(p[0] / cellSize);
+  const gy = Math.floor(p[1] / cellSize);
+  for (let dy = -radiusCells; dy <= radiusCells; dy++) {
+    for (let dx = -radiusCells; dx <= radiusCells; dx++) {
+      const nx = gx + dx;
+      const ny = gy + dy;
+      if (nx >= 0 && ny >= 0 && nx < cols && ny < rows) {
+        navGrid[ny * cols + nx] = 1; // ممر بحري مفتوح
+      }
+    }
+  }
+}
+
+export function buildWorldMapPack(): MapPack {
+  const width = 1920;
+  const height = 1080;
+  const cellSize = 8;
+
+  const topo = worldAtlas as any;
+  const countriesFc = feature(topo, topo.objects.countries) as unknown as GeoJSON.FeatureCollection;
+  // استثناء القارة القطبية من التفاعل الرئيسي إن رغبت أو إبقاء العالم متناسقًا
+  const borderMesh = mesh(topo, topo.objects.countries, (a: any, b: any) => a !== b);
+  const landGeom = feature(topo, topo.objects.land) as unknown as GeoJSON.GeoJsonObject;
+
+  const projection = geoNaturalEarth1().fitExtent([[36, 36], [width - 36, height - 36]], countriesFc);
+
+  // رسم الخريطة بنفس الستايل الهندسي للاستوديو
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+
+  const grad = ctx.createRadialGradient(width / 2, height / 2, 100, width / 2, height / 2, width * 0.65);
+  grad.addColorStop(0, '#0d223a');
+  grad.addColorStop(1, '#061221');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, width, height);
+
+  const pathGen = geoPath(projection, ctx);
+
+  // شبكة خطوط الطول والعرض
+  ctx.beginPath();
+  pathGen(geoGraticule10());
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.12)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // رسم الدول
+  const regions: Record<string, GeoRegionItem> = {};
+  const zones: Record<string, MapZoneDef> = {};
+  const anchors: Record<string, Point & { label?: string }> = {};
+  const regionIds: string[] = [];
+
+  countriesFc.features.forEach((f, i) => {
+    const rawId = f.id !== undefined ? String(f.id).padStart(3, '0') : '';
+    const enName = (f.properties?.name as string) || `Country_${i}`;
+    const a2 = rawId ? countries.numericToAlpha2(rawId) : undefined;
+    const iso3 = a2 ? countries.alpha2ToAlpha3(a2) : countries.getAlpha3Code(enName, 'en');
+    const arName = iso3 ? countries.getName(iso3, 'ar') : undefined;
+    const regId = iso3 || slugify(enName);
+    regionIds.push(regId);
+
+    ctx.beginPath();
+    pathGen(f);
+    ctx.fillStyle = i % 2 === 0 ? '#1b293b' : '#1f3044';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(56, 189, 248, 0.35)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    const cent = pathGen.centroid(f);
+    const b = pathGen.bounds(f);
+    const polygons = f.geometry ? extractProjectedPolygons(f.geometry, projection, width) : [];
+
+    if (Number.isFinite(cent[0]) && Number.isFinite(cent[1])) {
+      regions[regId] = {
+        id: regId,
+        iso3,
+        name: enName,
+        nameAr: arName,
+        center: { x: cent[0], y: cent[1] },
+        bounds: { minX: b[0][0], minY: b[0][1], maxX: b[1][0], maxY: b[1][1] },
+        polygons
+      };
+      anchors[regId] = { x: Math.round(cent[0]), y: Math.round(cent[1]), label: arName ?? enName };
+      if (polygons[0]) {
+        zones[regId] = { id: regId, label: arName ?? enName, polygon: polygons[0] };
+      }
+    }
+  });
+
+  // الحدود المشتركة بين الدول
+  ctx.beginPath();
+  pathGen(borderMesh);
+  ctx.strokeStyle = 'rgba(148, 163, 184, 0.45)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // إضافة مراسي بحرية واستراتيجية عالمية
+  const strategicPoints: Array<[string, string, [number, number]]> = [
+    ['suez_canal', 'قناة السويس', [32.3, 30.5]],
+    ['bab_el_mandeb', 'باب المندب', [43.3, 12.6]],
+    ['strait_of_hormuz', 'مضيق هرمز', [56.3, 26.6]],
+    ['gibraltar', 'جبل طارق', [-5.6, 35.9]],
+    ['arabian_sea', 'بحر العرب', [63.0, 15.0]],
+    ['mediterranean', 'البحر المتوسط', [18.0, 35.0]],
+    ['red_sea', 'البحر الأحمر', [38.5, 20.5]],
+    ['riyadh', 'الرياض', [46.7, 24.7]],
+    ['cairo', 'القاهرة', [31.2, 30.0]]
+  ];
+  for (const [id, label, ll] of strategicPoints) {
+    const p = projection(ll);
+    if (p) anchors[id] = { x: Math.round(p[0]), y: Math.round(p[1]), label };
+  }
+
+  // توليد شبكة الملاحة الحقيقية (يابسة=0، بحر=1)
+  const { cols, rows, navGrid } = rasterizeLandNavGrid(landGeom, projection, width, height, cellSize);
+  // ضمان فتح الممرات البحرية الضيقة للسفن
+  openMaritimePassage(navGrid, cols, rows, projection, cellSize, [32.35, 30.5], 1); // السويس
+  openMaritimePassage(navGrid, cols, rows, projection, cellSize, [43.35, 12.6], 1); // باب المندب
+  openMaritimePassage(navGrid, cols, rows, projection, cellSize, [56.35, 26.6], 1); // هرمز
+  openMaritimePassage(navGrid, cols, rows, projection, cellSize, [-5.6, 35.95], 1); // جبل طارق
+  openMaritimePassage(navGrid, cols, rows, projection, cellSize, [-79.8, 9.1], 1); // بنما
+
+  const hitTest = createHitTester(countriesFc.features, regionIds, projection, width, height);
+
+  return {
+    id: 'world_live',
+    title: 'خريطة العالم التفاعلية',
+    kind: 'geopolitical',
+    width,
+    height,
+    cellSize,
+    cols,
+    rows,
+    navGrid,
+    svgOrUrl: canvas.toDataURL('image/png'),
+    anchors,
+    zones,
+    geoLevel: 'world',
+    regions,
+    hitTest
+  };
+}
+
+async function fetchAdm1GeoJson(iso3: string): Promise<GeoJSON.FeatureCollection> {
+  if (adm1Cache.has(iso3)) return adm1Cache.get(iso3)!;
+
+  // المحاولة 1: مستودع geoBoundaries مباشرة عبر GitHub (سريع ويدعم CORS)
+  const directUrl = `https://raw.githubusercontent.com/wmgeolab/geoBoundaries/main/releaseData/gbOpen/${iso3}/ADM1/geoBoundaries-${iso3}-ADM1_simplified.geojson`;
+  try {
+    const res = await fetch(directUrl);
+    if (res.ok) {
+      const json = (await res.json()) as GeoJSON.FeatureCollection;
+      if (json?.features?.length) {
+        adm1Cache.set(iso3, json);
+        return json;
+      }
+    }
+  } catch {
+    // متابعة للبديل
+  }
+
+  // المحاولة 2: API الرسمي لـ geoBoundaries
+  try {
+    const metaRes = await fetch(`https://www.geoboundaries.org/api/current/gbOpen/${iso3}/ADM1/`);
+    if (metaRes.ok) {
+      const meta = await metaRes.json();
+      const gjUrl = meta?.simplifiedGeometryGeoJSON || meta?.gjDownloadURL;
+      if (gjUrl) {
+        const gjRes = await fetch(gjUrl);
+        if (gjRes.ok) {
+          const json = (await gjRes.json()) as GeoJSON.FeatureCollection;
+          if (json?.features?.length) {
+            adm1Cache.set(iso3, json);
+            return json;
+          }
+        }
+      }
+    }
+  } catch {
+    // متابعة للبديل المحلي
+  }
+
+  // البديل المضمون (للدول الصغيرة جدًا أو دون اتصال): استخدام حدود الدولة نفسها من world-atlas
+  const topo = worldAtlas as any;
+  const countriesFc = feature(topo, topo.objects.countries) as unknown as GeoJSON.FeatureCollection;
+  const match = countriesFc.features.find((f) => {
+    const rawId = f.id !== undefined ? String(f.id).padStart(3, '0') : '';
+    const a2 = rawId ? countries.numericToAlpha2(rawId) : undefined;
+    return (a2 ? countries.alpha2ToAlpha3(a2) : '') === iso3;
+  });
+  const fallback: GeoJSON.FeatureCollection = {
+    type: 'FeatureCollection',
+    features: match ? [match] : []
+  };
+  return fallback;
+}
+
+export async function buildCountryProvincesMapPack(iso3: string, displayTitle: string): Promise<MapPack> {
+  const width = 1200;
+  const height = 800;
+  const cellSize = 8;
+
+  const fc = await fetchAdm1GeoJson(iso3);
+  if (!fc.features.length) {
+    throw new Error(`تعذر العثور على حدود المحافظات للدولة ${iso3}`);
+  }
+
+  const [cLon] = geoCentroid(fc);
+  const projection = geoMercator()
+    .rotate([-cLon, 0])
+    .fitExtent([[65, 65], [width - 65, height - 65]], fc);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d')!;
+
+  const grad = ctx.createRadialGradient(width / 2, height / 2, 60, width / 2, height / 2, width * 0.7);
+  grad.addColorStop(0, '#0d223a');
+  grad.addColorStop(1, '#061221');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, width, height);
+
+  const pathGen = geoPath(projection, ctx);
+
+  ctx.beginPath();
+  pathGen(geoGraticule10());
+  ctx.strokeStyle = 'rgba(56, 189, 248, 0.1)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const regions: Record<string, GeoRegionItem> = {};
+  const zones: Record<string, MapZoneDef> = {};
+  const anchors: Record<string, Point & { label?: string }> = {};
+  const regionIds: string[] = [];
+  const usedIds = new Set<string>();
+
+  const palette = ['#1b2b3e', '#203247', '#182637', '#24384f'];
+
+  fc.features.forEach((f, idx) => {
+    const rawName = (f.properties?.shapeName as string) || (f.properties?.name as string) || `Province ${idx + 1}`;
+    let id = slugify(rawName);
+    while (usedIds.has(id)) id = `${id}_${idx}`;
+    usedIds.add(id);
+    regionIds.push(id);
+
+    ctx.beginPath();
+    pathGen(f);
+    ctx.fillStyle = palette[idx % palette.length];
+    ctx.fill();
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 1.6;
+    ctx.stroke();
+
+    const cent = pathGen.centroid(f);
+    const b = pathGen.bounds(f);
+    const polygons = f.geometry ? extractProjectedPolygons(f.geometry, projection, width) : [];
+
+    if (Number.isFinite(cent[0]) && Number.isFinite(cent[1])) {
+      regions[id] = {
+        id,
+        name: rawName,
+        center: { x: cent[0], y: cent[1] },
+        bounds: { minX: b[0][0], minY: b[0][1], maxX: b[1][0], maxY: b[1][1] },
+        polygons
+      };
+      anchors[id] = { x: Math.round(cent[0]), y: Math.round(cent[1]), label: rawName };
+      if (polygons[0]) {
+        zones[id] = { id, label: rawName, polygon: polygons[0] };
+      }
+
+      // كتابة اسم المحافظة بشكل أنيق في مركزها
+      ctx.font = '600 11px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(226, 232, 240, 0.78)';
+      ctx.fillText(rawName, cent[0], cent[1] + 4);
+    }
+  });
+
+  const { cols, rows, navGrid } = rasterizeLandNavGrid(fc, projection, width, height, cellSize);
+  const hitTest = createHitTester(fc.features, regionIds, projection, width, height);
+
+  return {
+    id: `country_${iso3.toLowerCase()}`,
+    title: `${displayTitle} — المحافظات`,
+    kind: 'geopolitical',
+    width,
+    height,
+    cellSize,
+    cols,
+    rows,
+    navGrid,
+    svgOrUrl: canvas.toDataURL('image/png'),
+    anchors,
+    zones,
+    geoLevel: 'country',
+    countryIso3: iso3,
+    regions,
+    hitTest
+  };
+}
+```
+
+---
+
+## 4) سيناريو العالم التجريبي (`src/scenarios/world_demo.scenario.yaml`)
+
+أنشئ هذا الملف لتشاهد فيه الفرقاطة تبحر عبر باب المندب والبحر الأحمر بينما تتحرك الدبابة عبر اليابسة من الرياض إلى القاهرة دون أن تمس البحر:
+
+```yaml
+meta:
+  title: "الملاحة العالمية الحقيقية: البحر للدورية واليابسة للدبابة"
+  map: world_live
+
+timeline:
+  - at: 0s
+    camera: { focus: red_sea, zoom: 2.2, duration: 1.2s }
+    caption: { text: "١. خريطة العالم الحية: الدبابات تسير على اليابسة فقط والسفن تبحر في البحار" }
+    spawn:
+      - { id: fleet_red, actor: naval_corvette, at: arabian_sea, faction: blue }
+      - { id: armor_1, actor: heavy_tank, at: riyadh, faction: blue }
+
+  - at: 1.5s
+    move: { entity: fleet_red, to: mediterranean }
+    move2: {}
+    callout: { id: c_ship, target: fleet_red, text: "إبحار عبر باب المندب والسويس", color: "#38bdf8", duration: 9s }
+
+  - at: 2.0s
+    move: { entity: armor_1, to: cairo }
+    callout: { id: c_tank, target: armor_1, text: "مسار بري يلتف حول البحر الأحمر", color: "#f59e0b", duration: 9s }
+
+  - after: armor_1.arrived
+    pulse: { at: cairo, color: "#22c55e", radius: 60 }
+    sound: alert_ping
+    caption: { text: "٢. انقر نقرًا مزدوجًا على أي دولة لاستكشاف محافظاتها — أو اختبر عبور البحر بالدبابة!" }
+```
+
+---
+
+## 5) تحديث العارض السينمائي (`src/renderer/studioRenderer.ts`) لدعم التحديد والتمرير والزوم السلس للدول
+
+أضف المزايا التالية إلى `StudioRenderer` في `src/renderer/studioRenderer.ts`:
+
+1. أضف الحقول والطبقات التالية داخل الكلاس:
+```ts
+  private geoHoverGraphics = new Graphics();
+  private geoSelectGraphics = new Graphics();
+
+  public hoveredRegionId: string | null = null;
+  public selectedRegionId: string | null = null;
+  public onRegionHover?: (regionId: string | null) => void;
+  public onRegionSelect?: (regionId: string | null) => void;
+  public onRegionDoubleClick?: (regionId: string) => void;
+```
+2. داخل `init()` أضف `this.geoHoverGraphics` و `this.geoSelectGraphics` إلى `this.world`:
+```ts
+    this.world.addChild(
+      this.mapLayer,
+      this.geoHoverGraphics,
+      this.geoSelectGraphics,
+      this.navOverlay,
+      this.zoneGraphics,
+      this.arrowGraphics,
+      this.pulseGraphics,
+      this.particleGraphics,
+      this.anchorLayer,
+      this.entityLayer,
+      this.calloutLayer
+    );
+```
+3. داخل `setupPointerEvents()` أضف التمرير (`pointermove` عند عدم السحب) والنقر المزدوج (`dblclick`) + دالة مساعدة لتمرير `engine.map.hitTest`:
+أضف حقلًا `private currentHitTest?: (pt: Point) => string | null;` وتحدّثه داخل `loadEngineAssets(engine)` عبر `this.currentHitTest = engine.map.hitTest;`.
+ثم داخل `setupPointerEvents()`:
+```ts
+    canvas.addEventListener('pointermove', (e) => {
+      if (this.dragging || !this.currentHitTest) return;
+      const pt = this.screenToWorld(e.clientX, e.clientY);
+      const hit = this.currentHitTest(pt);
+      if (hit !== this.hoveredRegionId) {
+        this.hoveredRegionId = hit;
+        this.onRegionHover?.(hit);
+      }
+    });
+
+    canvas.addEventListener('dblclick', (e) => {
+      if (!this.currentHitTest) return;
+      const pt = this.screenToWorld(e.clientX, e.clientY);
+      const hit = this.currentHitTest(pt);
+      if (hit) this.onRegionDoubleClick?.(hit);
+    });
+```
+4. أضف دالة رسم المضلعات ودالة الزوم السينمائي عند الدخول لدولة:
+```ts
+  private drawRegionHighlight(g: Graphics, engine: StudioEngine, regionId: string | null, fillColor: number, fillAlpha: number, strokeColor: number, strokeWidth: number) {
+    g.clear();
+    if (!regionId || !engine.map.regions) return;
+    const reg = engine.map.regions[regionId];
+    if (!reg) return;
+    for (const poly of reg.polygons) {
+      if (poly.length < 3) continue;
+      const flat = poly.flatMap((p) => [p.x, p.y]);
+      g.poly(flat, true).fill({ color: fillColor, alpha: fillAlpha }).stroke({ width: strokeWidth / this.camZoom, color: strokeColor, alpha: 0.95 });
+    }
+  }
+
+  focusRegion(engine: StudioEngine, regionId: string, zoomBoost = 3.2): void {
+    const reg = engine.map.regions?.[regionId];
+    if (!reg) return;
+    const rw = Math.max(40, reg.bounds.maxX - reg.bounds.minX);
+    const rh = Math.max(40, reg.bounds.maxY - reg.bounds.minY);
+    const fitZoom = Math.min(this.app.screen.width / rw, this.app.screen.height / rh) * 0.65;
+    engine.cameraTarget = {
+      x: reg.center.x,
+      y: reg.center.y,
+      zoom: Math.max(1.2, Math.min(zoomBoost, fitZoom)),
+      durationSec: 0.8,
+      seq: (engine.cameraTarget?.seq ?? 0) + 1
+    };
+  }
+```
+5. وداخل `render(engine, alpha, timeSec)` استدعِ رسم التحديد والتمرير:
+```ts
+    this.drawRegionHighlight(this.geoHoverGraphics, engine, this.hoveredRegionId, 0x38bdf8, 0.2, 0x38bdf8, 1.8);
+    this.drawRegionHighlight(this.geoSelectGraphics, engine, this.selectedRegionId, 0xf59e0b, 0.24, 0xf59e0b, 2.6);
+```
+6. **ملاحظة بصرية ذكية في `refreshAnchors(map)`**: في خريطة العالم (`map.geoLevel === 'world'`) يوجد أكثر من 180 مرسى (كل دول العالم)، لذا اجعل إظهار نقاط المراسي تلقائيًا يقتصر على خرائط المحافظات والميدان (أو عند تفعيل وضع صانع الحزم فقط) حتى تبقى خريطة العالم نظيفة وواضحة جدًا!
+```ts
+  refreshAnchors(map: MapPack): void {
+    this.anchorLayer.removeChildren();
+    if (map.geoLevel === 'world' && !this.editorOverlay.enabled) return;
+    ...
+```
+
+---
+
+## 6) ربط كل شيء في `src/main.ts` و `src/packs/packRegistry.ts`
+
+### أ) في `src/packs/packRegistry.ts`
+سجّل خريطة العالم في الكونستركتور لتكون متاحة دائمًا في السجل والفهرس:
+```ts
+import { buildWorldMapPack } from '../maps/worldGeoEngine';
+// داخل constructor():
+    const worldMap = buildWorldMapPack();
+    this.maps[worldMap.id] = worldMap;
+```
+
+### ب) في `src/main.ts` — إضافة شريط التنقل الجغرافي (`World -> Provinces`) وإشعارات الملاحة
+1. استورد سيناريو العالم و`buildCountryProvincesMapPack`:
+```ts
+import { buildCountryProvincesMapPack } from './maps/worldGeoEngine';
+import worldYaml from './scenarios/world_demo.scenario.yaml?raw';
+```
+وأضفه إلى `SCENARIOS` واجعله الخيار الأول:
+```ts
+const SCENARIOS: Record<string, { label: string; yaml: string }> = {
+  world: { label: 'خريطة العالم التفاعلية (دول + محافظات)', yaml: worldYaml },
+  strait: { label: 'أزمة المضيق (خريطة سياسية)', yaml: straitYaml },
+  valley: { label: 'العبور التكتيكي (خريطة ميدان)', yaml: valleyYaml }
+};
+```
+2. أضف شريط HUD عائم أعلى الخريطة داخل `<main class="stage-wrap">`:
+```html
+      <div id="geoHud" class="geo-hud">
+        <span id="geoBreadcrumb">🌍 العالم</span>
+        <span id="geoHoverLabel" class="badge">مرّر على دولة للتحديد، وانقر مرتين للدخول للمحافظات</span>
+        <button id="drillDownBtn" style="display:none" class="active">دخول إلى المحافظات ↗</button>
+        <button id="backWorldBtn" style="display:none">↩ العودة لخريطة العالم</button>
+      </div>
+      <div id="toastBar" class="toast-bar" style="display:none"></div>
+```
+*(مع تنسيق بسيط في `src/style.css`)*:
+```css
+.geo-hud { position: absolute; top: 12px; right: 12px; left: 12px; display: flex; align-items: center; gap: 10px; background: rgba(15, 23, 42, 0.88); border: 1px solid #334155; padding: 8px 14px; border-radius: 10px; z-index: 10; backdrop-filter: blur(6px); }
+.toast-bar { position: absolute; top: 64px; left: 50%; transform: translateX(-50%); background: rgba(153, 27, 27, 0.94); border: 1px solid #f87171; color: #fff; padding: 8px 16px; border-radius: 8px; font-size: 13px; z-index: 20; }
+```
+3. اربط تفاعلات الخريطة الحية ورفض المسار داخل `src/main.ts`:
+```ts
+function showToast(msg: string) {
+  const box = document.getElementById('toastBar')!;
+  box.textContent = msg;
+  box.style.display = 'block';
+  setTimeout(() => (box.style.display = 'none'), 2800);
+}
+
+function attachEngineEvents(eng: StudioEngine) {
+  eng.onSound((id) => sound.play(id));
+  eng.onMoveBlocked((ent) => {
+    const msg =
+      ent.domain === 'land'
+        ? '⚠️ لا يوجد مسار بري متصل — الدبابات والمشاة لا تعبر البحر!'
+        : '⚠️ لا يوجد مسار بحري متصل — السفن لا تعبر اليابسة!';
+    showToast(msg);
+  });
+}
+
+async function enterCountryProvinces(regionId: string) {
+  if (!engine?.map.regions) return;
+  const reg = engine.map.regions[regionId];
+  if (!reg?.iso3) return;
+
+  const title = reg.nameAr ? `${reg.nameAr} (${reg.name})` : reg.name;
+  document.getElementById('geoHoverLabel')!.textContent = `⏳ جاري تجهيز محافظات ${title}...`;
+  renderer.focusRegion(engine, regionId);
+
+  try {
+    const countryMap = await buildCountryProvincesMapPack(reg.iso3, title);
+    registry.maps[countryMap.id] = countryMap;
+    // سيناريو نظيف مهيأ على خريطة الدولة لتجربة الأدوات والذكاء الاصطناعي فورًا
+    const firstAnchor = Object.keys(countryMap.anchors)[0];
+    const starterYaml = `meta:\n  title: "${countryMap.title}"\n  map: ${countryMap.id}\ntimeline:\n  - at: 0s\n    caption: { text: "خريطة ${title} جاهزة — اختر وحدة وحرّكها بين المحافظات أو انسخ Prompt للـ AI" }${
+      firstAnchor ? `\n    pulse: { at: ${firstAnchor}, color: "#38bdf8", radius: 65 }` : ''
+    }\n`;
+    yamlEditor.value = starterYaml;
+    await loadFromYaml(starterYaml);
+
+    document.getElementById('geoBreadcrumb')!.textContent = `🌍 العالم ◂ ${title}`;
+    document.getElementById('geoHoverLabel')!.textContent = `عدد المحافظات/المناطق: ${Object.keys(countryMap.zones).length}`;
+    document.getElementById('drillDownBtn')!.style.display = 'none';
+    document.getElementById('backWorldBtn')!.style.display = 'inline-block';
+  } catch (err) {
+    showToast((err as Error).message);
+  }
+}
+
+renderer.onRegionHover = (regionId) => {
+  const lbl = document.getElementById('geoHoverLabel')!;
+  if (!regionId || !engine?.map.regions?.[regionId]) {
+    lbl.textContent = engine?.map.geoLevel === 'world' ? 'مرّر على دولة للتحديد، وانقر مرتين للدخول للمحافظات' : 'مرّر على محافظة لتحديدها';
+    return;
+  }
+  const r = engine.map.regions[regionId];
+  lbl.textContent = r.nameAr ? `${r.nameAr} (${r.name})` : r.name;
+};
+
+renderer.onRegionDoubleClick = async (regionId) => {
+  if (engine?.map.geoLevel === 'world') {
+    await enterCountryProvinces(regionId);
+  }
+};
+
+document.getElementById('drillDownBtn')!.addEventListener('click', () => {
+  if (renderer.selectedRegionId) enterCountryProvinces(renderer.selectedRegionId);
+});
+
+document.getElementById('backWorldBtn')!.addEventListener('click', async () => {
+  yamlEditor.value = SCENARIOS.world.yaml;
+  await loadFromYaml(yamlEditor.value);
+  document.getElementById('geoBreadcrumb')!.textContent = '🌍 العالم';
+  document.getElementById('backWorldBtn')!.style.display = 'none';
+});
+```
+*(واحرص على استدعاء `attachEngineEvents(engine)` داخل `loadFromYaml`, وعند النقر على الخريطة في `renderer.onMapClick` إذا كانت الأداة `select` ولم يضغط المستخدم على وحدة، اختبر `engine.map.hitTest?.(pt)`: فإذا ضغط على دولة أو محافظة، حددها في `renderer.selectedRegionId` وأظهر زر `drillDownBtn` باسم الدولة!)*
+
+---
+
+## كيف تختبر التحديث الثالث الآن؟
+
+1. نفّذ:
+   ```bash
+   npm install
+   npm run dev
+   ```
+2. عند الفتح ستظهر **خريطة العالم التفاعلية** بالستايل الهندسي الداكن:
+   - شاهد الفرقاطة تبحر في بحر العرب ← باب المندب ← البحر الأحمر ← السويس ← المتوسط، بينما الدبابة تسير من الرياض إلى القاهرة برًا!
+   - جرّب إضافة **دبابة** في مصر ثم اضغط في أوروبا أو أمريكا: سترفض عبور المحيط فورًا وتظهر رسالة: *"⚠️ الدبابات والمشاة لا تعبر البحر!"*.
+3. مرّر الماوس على أي دولة (مثل **السعودية**، **مصر**، **تركيا**، **فرنسا**، **اليابان**) ثم اضغط عليها **نقرًا مزدوجًا** (أو زر **"دخول إلى المحافظات ↗"**):
+   - ستتوسع الخريطة وتنتقل تلقائيًا إلى **خريطة الدولة ومحافظاتها الحقيقية**!
+   - في اللحظة نفسها، يتم تحديث `CATALOG.md` تلقائيًا بأسماء محافظات تلك الدولة؛ اضغط **"نسخ Prompt جاهز للـ AI"** واطلب من أي نموذج ذكاء اصطناعي أن يشرح حدثًا أو تحركًا بين محافظاتها — سيكتبه ويعمل فورًا على الخريطة!
+
+هل تود أن ننتقل بعد ذلك إلى **تفعيل الذكاء التكتيكي للوحدات (الأصدقاء والخصوم، الاشتباك، احتلال المحافظات تلقائيًا وتغيير لونها عند الوصول)**، أم **تخصيص أسماء المحافظات العربية والخطوط التصديرية للخرائط**؟

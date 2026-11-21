@@ -1,0 +1,27 @@
+meta:
+  title: "عملية عبور الجسر وتأمين المرتفع"
+  map: tactical_valley
+
+timeline:
+  - at: 0s
+    camera: { focus: base_blue, zoom: 1.2, duration: 1s }
+    caption: { text: "١. تمركز رتل الدبابات والمشاة في القاعدة الغربية" }
+    spawn:
+      - { id: tank_1, actor: heavy_tank, at: base_blue, faction: blue }
+      - { id: squad_1, actor: infantry_squad, at: outpost_site, faction: blue }
+
+  - at: 1.5s
+    caption: { text: "٢. التقدّم عبر الجسر تلقائيًا دون الاصطدام بالنهر أو الجبل" }
+    move: { entity: tank_1, to: hill_east }
+    draw_arrow: { id: attack_vec, from: base_blue, to: hill_east, color: "#f59e0b", dashed: true, duration: 2.5s }
+    construct: { id: depot_1, actor: supply_depot, at: outpost_site, faction: blue, duration: 2.5s }
+
+  - at: 4.5s
+    camera: { focus: bridge_mid, zoom: 1.4, duration: 1.2s }
+    move: { entity: squad_1, to: north_flank }
+
+  - after: tank_1.arrived
+    camera: { focus: hill_east, zoom: 1.35, duration: 1.2s }
+    sound: alert_ping
+    zone: { id: east_sector, color: "#2563eb", opacity: 0.3, duration: 1.5s }
+    caption: { text: "٣. تأمين المرتفع الشرقي! جرّب إرسال الدبابة أو بناء محطة في وضع اللعب الحر" }

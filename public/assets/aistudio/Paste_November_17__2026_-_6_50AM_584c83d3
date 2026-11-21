@@ -1,0 +1,799 @@
+سأتعامل مع المشروع باعتباره بناء **منصة متكاملة لصناعة العوالم الجيوسياسية ومحاكاة أحداثها وتحويلها إلى أفلام وثائقية وسينمائية قابلة للمونتاج والنشر**.
+
+الخطة لن تبدأ بإعادة كتابة التطبيق من الصفر، ولن نحوله إلى مشروع نظري يعيش في ملفات التوثيق. سنطور الموجود تدريجياً، وكل مرحلة يجب أن تضيف قدرة حقيقية يمكن رؤيتها واستخدامها.
+
+# **الخطة الرئيسية لتطوير المشروع**
+
+# **من العالم الافتراضي إلى الفيلم النهائي**
+
+[Military Modeling with Futurescape | Deloitte US](https://images.openai.com/static-rsc-4/u6mGSx4vlTOq2OBP1ug8FmyA0Bp91UCl5zukidgyGOe5NJc7ms2ghNYIsA9zwFP3CrU1FVv-27IgdSciO5EgkpKbrrvt5Mv4_zQbS78Yvi6Ozqx302Pk0ltZ2vz1eRj6YLfz5hwDPGO0xaCxttpG_LvqthhdFBgCrQB2z4s0e3s?purpose=inline)
+
+[deloitte.com](https://www.deloitte.com/us/en/industries/government-public/articles/futurescape-military-modeling.html?utm_source=chatgpt.com)
+
+محاكاة
+
+تسجيل
+
+إنتاج فيديو
+
+المسار الرئيسي الذي يجب أن يربط جميع أجزاء التطبيق.
+
+## **أولاً: الرؤية النهائية**
+
+التطبيق يتكون من ثلاثة أنظمة رئيسية مترابطة:
+
+[Geo-Political Simulator 5](https://images.openai.com/static-rsc-4/nlC9N4_ybCRZ8ISbTmLp54NBdz4RXVg2Ox8qowAjjb9QGZOTsHnj_Yod6Ab3XLyMwsaIytAoVQBEK_NxOIp181BAoasIjQFEvesR2tzdAMymvZM1t3ZCTE0VTKI8QUiaCX7gFCgAIPcQaJAP9J8VhnQsdI2BtwFJeJMcYHE_yAI?purpose=inline)
+
+**1. استوديو العالم والمحاكاة**
+
+إنشاء الدول والشخصيات والمنظمات والجيوش والأحداث والتحكم في العالم.
+
+[Palantir AI System Becomes Pentagon Core Infrastructure - Mabumbe](https://images.openai.com/static-rsc-4/U1lRxtq_wynXY3YXfU3qOiIx0HzsXEpW3xIKd1FC9pvCv5IfZQTVmsZerPU1ivMPHdgtIAT-EAY2cNreoXLoxYQWK2CT4UqLRQMedBUW-TmjrgpGM3P6hYz-bQKyaDO9aYvsWD6sKsFck9s5i7Q3EISMC2FiHlHAYk8epUC4vHg?purpose=inline)
+
+**2. محرك الأحداث والتسجيل**
+
+تسجيل كل حركة وقرار وقصف وتغيير وتوقيت، وإعادة تنفيذ السيناريو بدقة.
+
+[What Is Freeze-Sync in Video Editing? — Vorec](https://images.openai.com/static-rsc-4/fLAz7kVgLdUAP_PmtFznvPKMMRtz7TXA7CLE331bgEsWx-P2bqjapNXMBtNkc36_wqB-JM2isbjiIGlXZ9dFbjfu7IldhQ7jLNlJRCBRDtzEDh21YBrzUDMg6y1uoxaR-qlUlOzpH3CA9WmmXdNyhKvEtobhwUgtr-krXiqcEO4?purpose=inline)
+
+**3. استوديو الإنتاج السينمائي**
+
+تحويل السيناريو إلى فيديو، ثم المونتاج والموسيقى والتعليق الصوتي والتصدير.
+
+# **ثانياً: نظام العالم الجيوسياسي**
+
+هذا هو أساس التطبيق. لا نريد مجرد خريطة عليها أعلام وأسماء، بل عالماً يحتوي على كيانات مترابطة.
+
+## **المرحلة 1: الدول وملفاتها الاستخباراتية**
+
+[Geopolitical Intelligence | Global Risk & Insight Analysis](https://images.openai.com/static-rsc-4/GdBXXueRKeroos9MJjeq8GK2sPaSyDUfWDLSmop9dPqdYPuRUelfBWMS-BA3vDBZmANOWexXlg3b85gfaTqVH01Hdri7pn7usBdB6wJG-ZqHQ0faWqTD2Q-yMqVkJmyZWTmJqGIVcJ-ap8yCzXBsmppzuZ3adARjKDiEzS0bXOI?purpose=inline)
+
+[Risk Intelligence Platform | Advanced Risk & Supply Chain Insights](https://images.openai.com/static-rsc-4/0YVzV7-YS5NbbOs7oJ5kTa5Lv4RxvumZuE31mtuumP_Jl-GXkEdNsQf5F4GG05eDuojCJy2ZB84jRpKk2__sa3i9ovppC899qCdGZPqLo3fteqfkN27yH_VA_dR77w-P0PYozmd3caiiLnBuE1f7wCSHnXtixxUPDdxssZ1U-Xs?purpose=inline)
+
+[Visual Analytics for Military Balance+ | Keshif](https://images.openai.com/static-rsc-4/Us6qbu0mKgwgUJFqNVad_EOXZowyvBJIs4X60sb5eghCNHHvx1dhtlIKx0rG3l3O03WqZM4lMAT4e_hKzkB4dYFbmJY9z9NF7sggYbBQu5Cwin7-KHZE7XeByEkiiYRK5N2tcC3YxxGMaftBA8bKrO18-7MxU5zVHyBjbt_571k?purpose=inline)
+
+[Geo-Pulse | Devpost](https://images.openai.com/static-rsc-4/J8d7fILilA5bKff6THjp5GZ3A0O4_aFOMzbfyogW5Gea8a8CX08_tVf0ssOr3Hxl5IZnugpcaWSAPyFf1yVq5V1BghqU07e3wigM5AjTQkd2hYcyYNbUuIHIt7D5p-0Sdavxh5olbsZyYK5Kgv0WID0riYVk02KM4MlBIB3SV0E?purpose=inline)
+
+[National Confidence Index Dashboard — KELLY ANN ARMSTRONG](https://images.openai.com/static-rsc-4/fDWCteq0dhtrrSRurzFga2A9Qpcxka4o4yk5lmeV2CDbUVdkCcCeMaKwnL-RU8ZehAOs7VDnToKTeDEE7hx7AaW8d98PtYzES5H38IRRhwMR0mNrZZLUtFVHbNieeW0tqZVDBTUkZSpO--1KxfigAN0Ogp3SSH8dJMGFIYJP2Bo?purpose=inline)
+
+[ARGOS ATLAS · 175,000 live cameras to spy on the world](https://images.openai.com/static-rsc-4/Qn7RX5JLo2lwjCmTmZxLkUXXwab3nr8gQYInyB93QwANp_hXrn8rYzlTHWIWPlc5z0cxLwr8hEAWoFZpmqpqNGtPcZEQHeOmPL6P3TGwG8eoj1GPnEUvroPS6x8PdSnDTZZi6S8tgcGUNwV0Mipg7bCL9oFKNEkJgf9_wqQyFbQ?purpose=inline)
+
+[CIA World Factbooks Archive 1990-2025](https://images.openai.com/static-rsc-4/VgHSKNzRpD69FMu9ov86Ygc8PFPxrAmAs7-ZvONIqELDW29UWrvt5Z1vMZDQ1iISWUsq1_uiUdN-uo3JgZVN8qu5blRH1tr44FnFEA7IDvtxbohefue2JeHM1Nmc95tse_Qk2JkIbNSBaMEdBJECqa_8kDMc9jQcz7E7FMkJ71I?purpose=inline)
+
+[Cartographie numérique: Carte de l'influence mondiale de la Chine et des États-Unis](https://images.openai.com/static-rsc-4/P_XhbwHzRpOBEHxvoAiLx4FdHl_pZ9yGNhNSwwXm9hFpn0c-EXKN_gCBdNKh_EixaazHUXaOESFv2gSS822oCSlCnNRZXxYnXCjGfajWWJCFJeOGte1cUgJmU7ce-TXk3XH7H-HHh3FnmvCBV69ZTC6gC-8F84fWrbaDP_QicnQ?purpose=inline)
+
+[World Warfare & Economics — Download](https://images.openai.com/static-rsc-4/J52NLQTQWBhu0ZituJsku05xskAb6b6ICoJy0iGW8VTfXi8h2UjGcsrkt4wUc8iQRNpfUSN3_7Zv7SxRWnYUC8zs7dOJ0JiI05JX9YnchO2gsfxpAmPcHSgiP94yitJIIHS0F91h1tKwwm1HphgpRJ48MYZJS1n81aEaEz31yus?purpose=inline)
+
+[CIA World Factbooks Archive 1990-2025](https://images.openai.com/static-rsc-4/yY2AA-0y1-BrBBIwM4pMQpsEDaHAg2F0socaLMmBOrM-4p4ho595OZ6SHola7bR7IZ39ncuSdA7Ig7OoFJhSPJ4-b-jcz9_RNalSbgYRqPvGinjCRuWbdnYplotLG52uod6M9I9TtTT4ZG5GPAhLh0Cb2x8t6pvyoIej3AO_JrM?purpose=inline)
+
+[ARGOS ATLAS · 177,700 live cameras to spy on the world](https://images.openai.com/static-rsc-4/quaieJdgn-foTTK-gwnkmW_8NwfJqMyUSOHsyvfXjCIhBPqZKQSzF1zLeM5oSN-RAIrnsRQUE_vhKNeSX8mFaKLprVsCvItbV9nz-xv-aoZASRsfKPiqW8v-AyUJigS4OUKtqdoEFMeKG4rYStaO124nu7e9L-jH4UQSka7uk7U?purpose=inline)
+
+[Precipice – Godot Engine](https://images.openai.com/static-rsc-4/-u7sswMeB6H97smUVLpfmZr6OMCNPTYGiLQoRPk_-kuK0hQYDtEafGk-_H7wZo9KB28xcwAIPeuhJ4n2t51loLoZQyd_UtFJGa-PP_NF7F3pMDHU9A1MCvcL284qSslU93RJw0XMRafVEnebqbiEZfM86-RVjX-094hHnAxFEUI?purpose=inline)
+
+كل دولة يكون لها ملف متكامل يحتوي على:
+
+| المجال   | البيانات                              |
+| -------- | ------------------------------------- |
+| الهوية   | الاسم، العلم، العاصمة، الحدود         |
+| السياسة  | نظام الحكم، الحكومة، الأحزاب          |
+| القيادة  | الرئيس، الوزراء، المسؤولون            |
+| الاقتصاد | الناتج، الميزانية، الديون، الموارد    |
+| الجيش    | القوات البرية والجوية والبحرية        |
+| الأمن    | الاستخبارات، الأمن الداخلي، التهديدات |
+| المجتمع  | السكان، الرأي العام، الاستقرار        |
+| الإعلام  | المؤسسات، التأثير، الثقة الإعلامية    |
+| العلاقات | التحالفات، الخصومات، الاتفاقيات       |
+
+**الأدوات المطلوبة:**
+
+- إنشاء دولة وتعديلها وحذفها.
+- تحديد حدودها على الخريطة.
+- تخصيص علمها وألوانها.
+- إضافة عاصمتها ومدنها ومناطقها.
+- عرض ملف الدولة من خلال النقر عليها.
+- حفظ واستيراد وتصدير بياناتها.
+- دعم الدول الحقيقية والخيالية.
+
+## **المرحلة 2: الزعماء والشخصيات**
+
+[Gallery — 5 BOROUGHS Screenshots & Key Art | Zir0 Matter](https://images.openai.com/static-rsc-4/ZpPuvaGwXVBEGdkgME1X5q5OEqlceAS35bD1WSP6E6zfVA2nKN80Zvcrbdi4tvJvd7AYpZeeRke35z08WZEzgutwRh23NU0MQFugxkhZDqDxabHJxhzvJHNcVc4G_BWEG33Yk94WBiZycm6o1ATrXl3VhsrD_zZQPnJdJ1Qqz7g?purpose=inline)
+
+[Скриншоты Rogue State Revolution - галерея, снимки экрана, скриншоты](https://images.openai.com/static-rsc-4/hqxxuXf-AOM6k8HwrfFLJr8TYYV2x8I9qAYcYyovwwAFKzrvZfgWQEU70xuuekfFwuQKwkAeaKr_-pYzxa8HghBvN8TJdIX7lMuk6my2TcTs9rX0_1SE7tIEvLqNIvhftGCl6ARCemWwN64FpaGsGQU_Gddt3y5SVoTS1pDViYE?purpose=inline)
+
+[Komunita služby Steam :: Návod :: The Ultimate Guide to a Communist Sordland](https://images.openai.com/static-rsc-4/CLKZ1rbRbG4-2ajh8Sus8mYwkllz9pljjRG7N5dgJh3aH-nrWgNL-AxeUNllUGSlBjkY4TzR82P2bnaDgE0cInmtqjFiVeQG5XIQLcFbkFJwd36Ec7WSbuyaK_SImhqN1kanc33ru4vzmNGR8kvxLFvUZ9MhFk3fj0PJx6R2bX8?purpose=inline)
+
+[Orwell - Ignorance is Strength Screens Galerie - Adventure Corner](https://images.openai.com/static-rsc-4/rcrvbFKA7rzNkRqSALSSXzpMUqTxxaqRdXHuXaCe_sszQybNT5xAO8lk0VKpce6Anfj2qSQyQFwCULfaH1RqzFr2mxJtPaTs2mpa7o-BM_JkoNi6jkIhFFRHEc3n-ot0xaofaXp4a62KBAdaCNsfKtyzuKUoiF7D0EhAtt9DF_8?purpose=inline)
+
+[Client Challenge](https://images.openai.com/static-rsc-4/PTcfPHqu2Dj4SeG8vNNq3F57Hcvijx6WgJ3txD6P7GbrnrkyDlBPMiONG_vOYb4hJIUcA3yUk-pG8MfF6BebWwVkPSiHKli64VZz-WS1g28mOFlRPgQ8rqGO_bSTk-L9eNvs0q63C319pNklC2pZlQFCR7Gl5swTBG7Q_BJTlRU?purpose=inline)
+
+[Скриншоты Crisis in the Kremlin: The Cold War - галерея, снимки экрана, скриншоты](https://images.openai.com/static-rsc-4/W0Hvla5mwqo7Vf4YCTO62MWU4SUqHhJgtXZaNRfFamgI_DI5nDyv6VG4ffK74Y_Fo7SlqGYL4ESChhxjosogAZ9NzfASgdflZCRSXU_ZvZ2b9SpHn7dfkqPurs2eesrsRZuBr_nUxLcMq6LjSm03KFOgz0ykMem0VrAbkvHrYsQ?purpose=inline)
+
+[Due diligence. Continuous monitoring. Background checks. – Intelligo](https://images.openai.com/static-rsc-4/UW_qLib46XNlWGN_5kEgkm3E-N16sNCYENcyDqOWNEjvsHIEtyypKgGCcnAM6RhLVh_38P6Lmhsm7AIpl6Hjij_-OIvdea7H1DS-_4Ik5KnDl95ULd-ZvThoUdOKJB8z7ek4iYVp1tOGmmxNTFZ_h0YYy84vLjOaWm_Dd19a0tk?purpose=inline)
+
+[Government ministers | Institute for Government](https://images.openai.com/static-rsc-4/1HgfqZ2ac5q0CzuYhO3kpKt_r17nX2rgLUq0kM_xSXnC0bYUtLqTRKlg9NphvNxLutke0Sj322e1lHVPkv9sBzTapnRpBIkNR0ejt7YfxzrMhQ5BNRoJim8o1qZmlJ57qqQYOrshW-2mWw1qvOAhCbRnod5pe4jeW0xfVEIpoRw?purpose=inline)
+
+[CivLab's New AI-Powered 'US Gov Graph' Tracks Every Position of Power Across the US Federal Government | IBTimes UK](https://images.openai.com/static-rsc-4/LTo8Yb51Sbc3ClXlMcG2uRTYUwC1qCSFmYYZqcjhGPPX01imzHFFEKVspHXcoGFnaAqjNGRhZap41MrnI64ym2F8vRWy-mJ7JE2zzwU_gnJ4iBHP45vciE1eo3uNwup-aGNU3nre7pokNhT7sv667WfVHhKdY5cSFGJFpyJRS88?purpose=inline)
+
+[Espiocracy on Steam](https://images.openai.com/static-rsc-4/hE8mK6GxbJS44Q23ecT6bQ38vR2wjQWRpn3CUrgxnsbmT1AJa_XowsG1Tr-_VH9-dqStKb_y29bA2prAOr9U4HoW17gqqvVpaw9m9kY02G19p_kPrCODRFnfyaUnKpTjSp09MmFgO_yYzYVUcCcSOpFf4uJy6uTqCYW4qyvh8GY?purpose=inline)
+
+[UK Politics Simulator Screenshots · SteamDB](https://images.openai.com/static-rsc-4/gRNY-ljSUJtTOb2Bjmo6mDd_MZsV4JIoGhVLMZQEQljyM7Xr89RjCxM7p6OYjLK70ZDiYdLWbxchw3J3LUbWND9UnCLdxND4j_hWJp2kA9IR3KA4CGbjvra8_iYzZUo4NxMzHeO42Ge-u7rXK-A51X5m25I9n3fX5VEvBcwSt4g?purpose=inline)
+
+الشخصية ليست صورة واسمًا فقط.
+
+كل شخصية تمتلك:
+
+- الاسم والصورة والمنصب والدولة.
+- الشخصية والطباع وطريقة التفكير.
+- الطموحات والأهداف والمصالح.
+- العلاقات والخصومات والولاءات.
+- النفوذ والصلاحيات.
+- المواقف والقرارات السابقة.
+- سجل الأحداث المرتبط بها.
+
+ونحتاج إلى نظام يسمح بإضافة:
+
+- رؤساء وملوك.
+- وزراء ودبلوماسيين.
+- قادة عسكريين.
+- مستشارين.
+- شخصيات إعلامية.
+- قادة أحزاب وجماعات ومنظمات.
+
+ويجب أن تكون هناك إمكانية لتغيير القيادة أثناء السيناريو، بحيث تتغير السياسات والعلاقات وفق الأحداث.
+
+## **المرحلة 3: الجيوش والوحدات العسكرية**
+
+[Palantir embeds itself across European militaries and NATO as Germany holds back			| 			DigitalShield](https://images.openai.com/static-rsc-4/zhV5qrNzfWq6gYOqzfkPSlrNpisPQmu0SDz61Qu18c-gydjDnG0V_ihsY8IDSff1vZFNMcLsmCVjijYDWqbbwn0pMtQUWWiIUSB32fSjxaGb0WK78GCWRAN3F95uTbbSX5SX_DwcO-m76vRS7sXg2iO4xdlRwUNnNes90d_qV1o?purpose=inline)
+
+[Save 40% on Flashpoint Campaigns: Southern Storm on Steam](https://images.openai.com/static-rsc-4/TtSDHIlCkNN2Q7w8ejw3-pTxOfcxRS4FTDIgPOupgSbFv95m0SAiFPvGcseCPtJyIIYlI-_46vzGKyrecrdxGugTey2HP5HGLp3nlAX7fkp4B3P_eVzX2XDkak4G7gsxCVnSPLLWUiKhlsExa4rq_wVEqNGLMoFVW-NTYEjb7Xc?purpose=inline)
+
+[Command: Professional Edition - Game - MatrixProSims](https://images.openai.com/static-rsc-4/FV1y4Yt9zP0u1BhY5ErVehsteUtxIkK6Kal1Q561sX1W2aG7-w_7bN1F0XQcH5AV8KQN7GQ-EOEsFGGInJskc5vaUsdClT_iQ6bKMDTSAt5prZDWydx7XQ42ZfNcTs0qdYmRBhKWw6bKXPyMsseiVEEg_m_uUQRYtE5nNeWG7AU?purpose=inline)
+
+[Inside the high-stakes US defence system tracking Iran missiles and drones - The Economic Times](https://images.openai.com/static-rsc-4/jWOmQj0TSNoTV4HHbETtjaAzIIe2ge2kjwHybqvG0meAFqll0IXyIYJhCTX8EUy1-fmCbKeQoM1ropXAROS_BRZmaJBO_hQqNB6ja8MG_YjMO_a1gRy9iTm2D3OZ6Km2h6TAgcNljS9tqgdTLiVXgXfrWeA0n7MoFnFUm2wPlBc?purpose=inline)
+
+[Fortion® TacticalC2 | Airbus](https://images.openai.com/static-rsc-4/4fKMyBAYTuOa8ntVXeddKTpGePuWKU0_YmUBxmdC3DQHR5d0H8mfxLFF5iXVRQle8t16ZbKIZDwi1gmqF6YHYEu9v2nh6bZMUS5n2vTXg0HqgXbI3hxI7lCrvAAYrWtUhUT8XtMNYXpEIoHJjwrk1jYyE-P-0w1Hap2MPH9AUhg?purpose=inline)
+
+[With Theaterisation, plan Multi Domain Integration (MDI)](https://images.openai.com/static-rsc-4/Bpy8i4g4STPiX4afXWGG8vVs4_taZNqDtr-t7EcqjVn9UsJEUPMpPmEadXDo4MvEnAewS-nE79zHkvrWw2vMkc_hUQg9FfxFuKkWDZhkdzsojOoqEYPhFYBwGUKtOoJXvI6FcGJfX83kImpae0mYYBmX7xPLoqt4Ecyv_OAFRT0?purpose=inline)
+
+[이번 무대는 아시아! 시리즈 첫 공식 한글화 '워게임 레드 드래곤'](https://images.openai.com/static-rsc-4/dHq1AoK1tMJUKtPdBp0uNZMvdQN7uO9SwylZpMZxsAN_hyLtNWjfHU_R1SVYN66_36F2Zvo8qJN3Hp9grujrQybyZuQe2NOIlWicqJpSdS54hT1zNy-P8-eYttl3k5dMSopZ44DA69-nfxryczAGAabcqTVV_te2kg44pi-_aoQ?purpose=inline)
+
+[Five Powers exercise concludes - Australian Defence Magazine](https://images.openai.com/static-rsc-4/iX2WmKx5KWApCMTfiG-oOEPPCJPp7rf4-7p0r5r3cMiYapltQvf51YdnLJiDoxUmMO78bYGIIqrT16hHghwnjJilQMopDM_sFklxAKTHioO1nZdkz9PSFIChPraUC-Do1_LKZi93F1axjrZ3ivaRrBbg7EXrEK13FD3d6Sxy7dE?purpose=inline)
+
+[WARNO Screenshots · SteamDB](https://images.openai.com/static-rsc-4/m4z0F0jPify_mDQKNRN6lO_47vo_0cVRsQCKxT6iXa1HK3fC7M7t2GL21jdqq9i71ZX-QWSSBUTDsMaHEFPNGDLiAlCybigsdhRlG8Kn5AeVwwLF5sh6VgntmVsQ8Jpxf8GqcdyR5r2otHq-ZJrBdUzv6iBOMlMZFhfEgxeZ5CI?purpose=inline)
+
+[US Army wraps review of ‘future battlespace’ network tools](https://images.openai.com/static-rsc-4/ZLET1pSWbXpK2rcWQxDXu8gua_C3YbVI64XEsX0aAR5ZxC-Wh1KcEReAlZuC8FvvW2g58irzfBLjfwHj4E0wmr34lY1n5ruYp8JO4b6FoRZII2_PdNfiPl4e996uw0NgxtDrP-ZSe3f0udCzBnkDeX4J2fyOYib4bjEOiMHG1MA?purpose=inline)
+
+[Manoeuvre And Attrition – Core Elements Of Naval Warfare - The Defence Horizon Journal](https://images.openai.com/static-rsc-4/-t92tx4TI6rC3PmB-9lrKfxlggxbm7fbkeHfHsTk_VytQwI6HMCNSJHo3qW3hHO_5_IR9UIlWIYFuljIOG8FVgrZBWr9xFJAsj2uUFOriUzj0mSiTwHqrbhABTSBRjfu125YQABkZHA3nvgVb7lhkYUWMzrMB4vySe6jHN8Rwws?purpose=inline)
+
+[Multi-Domain Operations i norsk kontekst](https://images.openai.com/static-rsc-4/2XxnyU-u_P4Mv5Oo9LeyKuu8KCh0LuGM3c5RVUva1dlXO1KydzkET3-906ilfSPKBH6IryyzZFDvfW1qY19Sgey7dygaO79TxMykvuZ1lfY7lAC5iSyH2VXTNSZlpxpKtjDjbOg4cxySlGrkaoSRIm2aVr3P83OD2vcv5-oCER4?purpose=inline)
+
+نحتاج إلى مكتبة عسكرية متكاملة:
+
+- القوات البرية.
+- القوات الجوية.
+- القوات البحرية.
+- الدفاع الجوي.
+- القوات الخاصة.
+- القواعد العسكرية.
+- المطارات والموانئ.
+- الإمدادات والوقود والذخيرة.
+
+كل وحدة لها خصائصها وموقعها وحالتها وانتماؤها.
+
+**الأوامر التي يمكن تنفيذها على الخريطة:**
+
+- تحريك وحدة.
+- تحديد مسار.
+- نشر قوات.
+- بناء قاعدة.
+- نقل إمدادات.
+- تنفيذ ضربة.
+- إنشاء جبهة.
+- تحديد منطقة سيطرة.
+- الانسحاب أو إعادة الانتشار.
+
+ويجب أن يكون لكل إجراء تأثير بصري واضح، وليس مجرد تغيير رقم في لوحة جانبية.
+
+## **المرحلة 4: الإعلام والحرب المعلوماتية**
+
+[CBS News replaces London chief amid Gaza coverage row | Journalism Pakistan](https://images.openai.com/static-rsc-4/JuT-mc0eoHpBpcYL9yfhvxy4uxAfTUwaX_m7Kg6Ae699QSz2ynpfyiv5VWdqgiqycT6W0sCkJ0u-3f2iZyzfp8Kqkzf6A8JqnItu0M8RveWTCFSbcxr2MvEpPl2_Sul8vBOskkCwzz_Rp7KsEgcHDhRbpiAYfpqgHqDRgckc-HA?purpose=inline)
+
+[U.S. Department of Defense Awards Accrete Multi-Million Dollar AI Production OT Software Licensing Contract](https://images.openai.com/static-rsc-4/0BEy79rHcZfJuU2ajERYVeHO8817FhwZEqpeyOpwg6rJTkpRh6Ey_vzzFCI8oO8PZY3lUp-nszd7KP-GI3X9F8fLlbv-I-Bd_WXm4E6zwq7keOyS_ASbgIUNJNMTY2WRQxswdt6gXy8npbOpkj3R-aYI6wy_zJzFE21EM-v2OQw?purpose=inline)
+
+[Maestro for News – Create and Playout News Graphics – Avid](https://images.openai.com/static-rsc-4/DF1k37izkt-9wRCNpOy9CkkKHfeGpRY811FBcZWu1w72g4NuwRpUCtmSJi7deG_FbPMQfVNp4IFdnT4NpUqvTFrnt2UlhVaBWA_xxkR9oWGivgWcLOILTjnV1zOp1ktemQ0Z4B2zB6kEqsA_AM3HfR5Wy4rHrRC3-dmxBcy7T1I?purpose=inline)
+
+[How Ordinary Lithuanians Are Fighting Russian Disinformation | TIME](https://images.openai.com/static-rsc-4/CpojkCx0f8Jy7VwK_2XANaoXYhgQ6DaWkUFNvnFACnf-mfOlVdXod9BL4vfwHIZxuFoHNnOseoW2VVe8Qo_zyfg9PCfZxctsumH9NlpgCjnXTel1fqo18IRHfytAjKy2IoVa9WkWNnCITAuXiShKWiewEC85nNPw2fagPVXBE_g?purpose=inline)
+
+[Iran-Israel War LIVE: Middle East Tensions & Global Stability](https://images.openai.com/static-rsc-4/2lDoTaaPZPrbJLMa3fuM1l2P3C43KWpdwieHRZMDUnCNdLPbVPng_a3I6F8LoguiH7GJV3wYUMPpiXxhF8GQTS4qW5Z-Wc84AikxVAPp9Qvk52nvD0kmsHVBtroWTXmwCwwrBu61qn3RG9vimcqKdBRcELk_UQ5Jh8ePvzke__4?purpose=inline)
+
+[TIME: Primetime | Admeira – Ihr Schweizer TV-Vermarkter](https://images.openai.com/static-rsc-4/QiFaYmQWa4pbACM2y43vl0_-7GA8qKsPSoc7NvonVyhmily_NykSZMnlrG46ptuT4hoafykKGncDDzHT6swENJDN5P7fSrjGZkQPDddSMYghLcAPhA_WLUSxkqZtSo3IlV5uJgCgsPLIhKJ96L3aSJPVSatrd0kd7wNmlwDpamU?purpose=inline)
+
+[教材用：SNSの情報拡散シミュレーション（２）｜Iz_yan](https://images.openai.com/static-rsc-4/7vxfFIgEnEsgAXH25z1VqOk4rudASWR6fAm_VdJSGyzGfkoCA94UISe8P3U1Aih2bgOUjWF-bUoko9Lr2-YmVxL3uLGcI1-xEcGgq1oMFsJWUNX2CPN8xgT4ip9-16kIJy924vPg0o-O9sG7PNiLzh3TKe3VT3SNZrjhL7nbE44?purpose=inline)
+
+[On Israeli television, the manufacture of heroes and the justification of revenge on Gaza](https://images.openai.com/static-rsc-4/F6GPwphGEcyaBFOEGf1S1MtePcp2NCD_2kqJdIcGHELndsllhFOqvwYfKk2rm47t9-JR6kxvQKKqIZNE8LmnnmBxkfZjwKwykUIyC8LycIP45m6wGzoxiIC9BdaPSz9eejNW6GI7htGHk0ECNeMg7-B3tcTZoSQCqnS0CvNwHOQ?purpose=inline)
+
+[Crisis Response | EEAS](https://images.openai.com/static-rsc-4/mp7iFlzWhzQlPcXgz13KnxMuBe1DXTMvUKjb8PscACb8iYYvAl8tFTHOW03AduRYforDOBJXDqPy2qnPycEJff1chB4x1W95m8bpCoTT9R9bCxEJfvha1Ct9tkiCm-CKne97uik76NOahPIspWhZ693Vz6pM8wEd9znFCq22YJc?purpose=inline)
+
+[Blackmagic ATEM Monitoring Rack Panel 40 | COREMICRO.COM](https://images.openai.com/static-rsc-4/RRe01b7Hol5cywDvH6Qee3dCrIlxD39lJIShXg4--hF2e4XD17_QbQKkaphLtJRjtmEZv_94_m3uxObkdQa1ACs22LI-lJEB4jaXif50j1KRgJxgq5Cpczwx0VgM9TNwN8wUsHO-LTfSGQinsNBooGAyeBpEez_R9hjaGnqhcp0?purpose=inline)
+
+هذا نظام مستقل لكنه مرتبط بالدول والشخصيات والأحداث.
+
+يتضمن:
+
+- إنشاء قنوات ومؤسسات إعلامية.
+- إضافة صحفيين ومحللين ومتحدثين.
+- نشر أخبار وبيانات رسمية.
+- إنشاء حملات إعلامية.
+- عرض روايات متنافسة حول الحدث.
+- قياس الانتشار والتأثير والثقة.
+- متابعة ردود الفعل الشعبية.
+- عرض الأخبار على شكل شريط إخباري أو نشرات.
+
+مثلاً: عندما تقع ضربة عسكرية، يستطيع النظام تسجيل الحدث، ثم تظهر ردود الدول والقنوات والشخصيات وفق السيناريو.
+
+## **المرحلة 5: الاقتصاد والسياسة والعلاقات الدولية**
+
+[Emerging Trade Corridors: How New Routes Are Reshaping Global Power Dynamics | Investor Central](https://images.openai.com/static-rsc-4/-SwiPb5pL2mO8S2RjKvEfRmLN80UMYAOrbXaaP1Sw8-527MJM1z8AhLlef50fF5qfK9cCAuXRPMbY11N8--I9L2TxWPsQd3ZqsUeGRNrk3fuP8PnexxfkWtK--0baFTgWjNgysBpP5y0uGsfCxSxHvfWOidZ-QqHMcpRR2BPkFA?purpose=inline)
+
+[International Relations](https://images.openai.com/static-rsc-4/lP8AqgflReB-hqmcELtamj0tEW0bTG99erXCDi3O7fkUEQc8ZkZC33Q3xLe19UdgHw-9YhhBOESsVh_3b9mDahSHdpdrIReZXXslLM68i90yR4l4ukqk-CticJ9uT4TK64pTfi57J5dRSTHPuElHOUefmPMf5GVzYKU866qwohg?purpose=inline)
+
+[Anadolu Ajansı](https://images.openai.com/static-rsc-4/8K7rXKGe85ht-rGQgsTTyeDK3Tt0a4VCEIRFV3rTgzWr8CO2ttgpjvzLU3qMzD4K-P-vP0gBuQ451xQ-u9ES8YgjwoEY6ccX4NjXJax09spRLTjAdRPSLRcXpUhG6kXK61vddFtzR4bVMyWkw7H2rdWXuX_UzjnNQvPc6LjZlnU?purpose=inline)
+
+[Protectionism, Pandemic, War, and the Future of Trade | BCG](https://images.openai.com/static-rsc-4/VvDvtaKUqRcQw4NHNWsMA_gieovpR1lJWSf2PkBf_RJikTu_G4Ocq5z4QrcribqafNsxDEIQSOkk53RBtOfzRDEU7Drb1JCPP--u3UNLXfXTRmr3u_yVojK9esVrwTObEFR5qQa2mHLz44KKnL06gRHhqTEB-e0f9amR_E9B9v4?purpose=inline)
+
+[Implications of economic sanctions for Russian international trade | S&P Global](https://images.openai.com/static-rsc-4/oQTcJYNe7qynjsRYd_3ue_yp9O7STaaAa4xtHjlnBTf6K4A985MzlzxwZK4sMtBATnLTF7YcktDO-7M8G0LMLIKJHODL7gL_nGYOp5JcNLUnN-e4IsOTdmpci4Bbn8puDm7uTDwWh9mDKx5rOyF6KoWEjLtOTQAxBweDrsFyXec?purpose=inline)
+
+[Global Diplomatic Renaissance: Revolutionary Partnership Frameworks Transform International Relations | Planet News](https://images.openai.com/static-rsc-4/gns_pXI2TgFU9VQI6hIUo5kEerEnwDVXmropv7HDQTiEvtZmQhAXWaClK8-aGRUZZGrmTd7wmiNmtvitFPxXuHOh8IymGacgFJ2YfU86WO740cBpI4uIVBKCAhA8gKF_7uIkGmccZaYvlDaufO1fp4Yuh5Znr5gA9GxBEVS-DCM?purpose=inline)
+
+[The Global Sanctions Data Base | CEPR](https://images.openai.com/static-rsc-4/qwJ5xCFOF9TvYB6Poh81TIg2cCOJ9LasdKSUDEzLXUayqfpzYMaVHTkTqj6N_QvNsr_TvnCIrZiF-NaNpEEXh3XvVm64AF_pD2SgZKupO6HjK9CPaqIFtF-2qwHGCupVWgfabVaOvIZ7Z4sBKREohZLXERh7YVq8wUdxiKgTrX0?purpose=inline)
+
+تشمل هذه المرحلة:
+
+**الاقتصاد**
+
+- النفط والغاز والمعادن.
+- التجارة والصناعة.
+- الميزانيات والديون.
+- الموانئ والممرات التجارية.
+- العقوبات والقيود الاقتصادية.
+
+**السياسة**
+
+- التحالفات.
+- الاتفاقيات.
+- المفاوضات.
+- التهديدات الدبلوماسية.
+- تغيير الحكومات.
+- الأزمات السياسية.
+
+**العلاقات**
+
+- علاقات ثنائية بين الدول.
+- علاقات سرية ضمن السيناريو.
+- مستويات التوتر والثقة.
+- المصالح المشتركة والمتعارضة.
+- تغير العلاقات بسبب الأحداث.
+
+## **المرحلة 6: المنظمات والجماعات والكيانات المستقلة**
+
+لا نحصر العالم في الدول فقط.
+
+يجب دعم:
+
+- المنظمات الدولية.
+- الأحزاب السياسية.
+- الجماعات المسلحة.
+- الشركات الكبرى.
+- المؤسسات الاقتصادية.
+- التحالفات الإقليمية.
+- الحركات الشعبية.
+- الجهات غير الحكومية.
+
+كل كيان له هوية وأهداف وموارد وعلاقات ونفوذ.
+
+# **ثالثاً: محرك الأحداث والمحاكاة**
+
+قلب النظام
+
+هنا يبدأ التطبيق بالتحول من محرر خريطة إلى محرك محاكاة حقيقي.
+
+## **المرحلة 7: نظام الأحداث الموحد**
+
+كل شيء يحدث في العالم يجب أن يكون حدثاً قابلاً للتسجيل.
+
+أمثلة:
+
+| الحدث        | البيانات التي يسجلها                    |
+| ------------ | --------------------------------------- |
+| تحريك جيش    | الوحدة، الموقع السابق، الموقع الجديد    |
+| قصف          | المنفذ، الهدف، الموقع، التوقيت، النتيجة |
+| تصريح سياسي  | المتحدث، النص، الجهة، الوقت             |
+| اتفاقية      | الأطراف، البنود، تاريخ التنفيذ          |
+| عقوبات       | الجهة، المستهدف، التأثير                |
+| تغيير حكومة  | الحكومة السابقة والجديدة                |
+| حملة إعلامية | الجهة، المحتوى، النطاق، النتائج         |
+
+كل حدث يحتاج إلى:
+
+- معرّف فريد.
+- وقت التنفيذ.
+- الجهة المنفذة.
+- الهدف.
+- البيانات الخاصة بالإجراء.
+- الحالة والنتيجة.
+- علاقته بالأحداث السابقة واللاحقة.
+
+## **المرحلة 8: نظام الزمن والتحكم**
+
+يجب أن يكون هناك تحكم بالزمن:
+
+- إيقاف المحاكاة.
+- تشغيلها.
+- زيادة السرعة.
+- إبطاء السرعة.
+- الانتقال إلى توقيت معين.
+- الرجوع إلى حدث سابق.
+- إنشاء نقطة حفظ.
+- إعادة السيناريو من نقطة محددة.
+
+والأهم: يجب أن تكون إعادة السيناريو حتمية قدر الإمكان، بحيث لا تتغير النتائج عند إعادة تشغيل نفس سجل الأحداث والإعدادات.
+
+## **المرحلة 9: الذكاء الاصطناعي وسلوك الكيانات**
+
+في هذه المرحلة نضيف سلوكاً مستقلاً للكيانات.
+
+مثلاً:
+
+- دولة تستجيب لعقوبات اقتصادية.
+- زعيم يتخذ قراراً وفق أهدافه.
+- حكومة تتفاعل مع الاحتجاجات.
+- منظمة تصدر بياناً.
+- مؤسسة إعلامية تتناول حدثاً.
+- تحالف يتغير موقفه عند وقوع أزمة.
+
+لكن يجب أن يكون هناك فرق بين:
+
+1. **التحكم اليدوي:** أنت تقرر كل ما يحدث.
+2. **المحاكاة الآلية:** الكيانات تتصرف وفق قواعدها.
+3. **النمط المختلط:** أنت تتحكم في بعض الأطراف وتترك البقية للنظام.
+
+هذا يمنحك القدرة على صناعة سيناريوهات يدوية بالكامل أو عوالم تتطور تلقائياً.
+
+# **رابعاً: محرك تسجيل السيناريو وإعادة بنائه**
+
+هذه أهم نقطة تربط العالم بالفيديو.
+
+## **المرحلة 10: نظام التسجيل Action Recorder**
+
+[Steam Community :: Guide :: Waragem: EE](https://images.openai.com/static-rsc-4/45KJH6DwQCgoVVk-B2B6_DwQVhVLUrqqpOm-l4mUAPcGLYL1TKrnXcW1cUJNv2Xea95NMIOwHIHzDtK5jmw7qZmWolC_r5AqKPhVjv-YWrwCVPjTtZ5NZmy_84I200cPD_zBKPADc-32tktr1CHhqaLWHBxQydb66d6tnsxmAZs?purpose=inline)
+
+[steamcommunity.com](https://steamcommunity.com/sharedfiles/filedetails/?id=116935921\&utm_source=chatgpt.com)
+
+كل إجراء تقوم به يسجل تلقائياً.
+
+مثال عملي:
+
+| الزمن | الإجراء                  |
+| ----- | ------------------------ |
+| 00:00 | بداية السيناريو          |
+| 00:12 | تحريك وحدة عسكرية        |
+| 00:24 | إقلاع طائرات             |
+| 00:38 | دخول الوحدات منطقة محددة |
+| 00:45 | تنفيذ ضربة               |
+| 01:10 | ظهور بيان رسمي           |
+| 01:30 | إعلان حالة تأهب          |
+
+لا يحتاج المستخدم إلى تشغيل كاميرا تسجيل خارجية. التطبيق يسجل الإجراءات نفسها.
+
+**المبدأ الأساسي:** نسجل ما حدث داخل المحرك، لا مجرد صورة الشاشة.
+
+وهذا يسمح بإعادة بناء الحركة والكاميرا والمؤثرات والمشاهد لاحقاً بجودة أفضل.
+
+## **المرحلة 11: نظام الكاميرات والإخراج السينمائي**
+
+يجب ألا يكون الفيديو مجرد تسجيل شاشة للخريطة.
+
+نحتاج إلى نظام إخراج بصري يدعم:
+
+- لقطات عامة للعالم.
+- تقريب على دولة.
+- متابعة تحركات الوحدات.
+- انتقال بين الجبهات.
+- إظهار مسارات الطائرات والصواريخ.
+- إظهار مناطق القصف.
+- تسليط الضوء على الأحداث.
+- عناوين وتواريخ وأسماء.
+- خرائط توضيحية.
+- انتقالات سينمائية.
+- مشاهد إخبارية وتقارير مصورة.
+
+يمكن للمستخدم تحديد نمط العرض:
+
+[ИИ и Государство 2026: Мировой опыт и Российская модель…](https://images.openai.com/static-rsc-4/lhiAJYq9oFtb_ibJ7-xgRS1-cCl4YxrxCSjAQDJyiJNj1U5wyk8mwge-9v-cPzyqg35hocfzdRTrAKKyc8yYOHudib6a_1SW9s-ef1kEQh9XLKri_pSgZ-tB5AsettD6R1A0J4ODsH7tYaGPPWGyaseG4LkTI0xbh2zHlwBEJqM?purpose=inline)
+
+**وثائقي جيوسياسي**
+
+[Threat Level — Iraq: vast crowds converge on Najaf and Karbala as the funeral corridor opens | Ops Con Intelligence | The Ops Con](https://images.openai.com/static-rsc-4/-zM3pAbJERk2K1eth9EQakCsPx370UbJW_0xDpbX1ahfYcDq7zWiXK6GSd5sLwvuDybTR6wij-NZVodElx9gLGNrFMDbktUXJa5ApRWiKrUicp_I0gWPyX3f83HRtyW3IIVx6l7IpPFmcjSAlweFOvOXtQkmrUCbqkodDT3itF0?purpose=inline)
+
+**تغطية عسكرية**
+
+[La tension entre les États-Unis et l'Iran persiste, en particulier au niveau du détroit d'Ormuz - Vidéo Dailymotion](https://images.openai.com/static-rsc-4/zc9jx6XoKbke7lxwPf9vb-XrGHc6ZufsAdlzv8vBgj4crxxmOUZ9LsdnhNx5W2bU9lQJqcRNrsH7HZHhFvdAmXXy00O3Y89s9FmV2GhHYiWJYknsa5-QX0XIbyMo5fUkSYOJU1hprRmXn-F_2FC_zHuj9aPcvurdmCWhx04xV50?purpose=inline)
+
+**تغطية إخبارية**
+
+[Barbarians Rising: Attila, King of the Huns | History - video Dailymotion](https://images.openai.com/static-rsc-4/F6F2-Jkd0Je26LW72EhZBXMlcddwgFmXoiQ7Nr8E6k2JZdAgmB4OcxSbxW4NwhWH469sqUbG6QFtliVsVc5xt2wezg4k19xkYMSXjAdjLnXoZRTvr70csGpymh-XvGo8v3a4WLA5UjoSd748G0GXiViyFMldcvq-R0npjqQPBlI?purpose=inline)
+
+**فيلم تاريخي**
+
+# **خامساً: استوديو إنتاج الفيديو**
+
+النتيجة النهائية للمشروع
+
+## **المرحلة 12: التحويل التلقائي إلى فيديو**
+
+بعد حفظ السيناريو يظهر زر:
+
+**السيناريو: أزمة إقليمية**
+
+محفوظ
+
+**تحويل السيناريو إلى فيديو**
+
+إعادة بناء المشاهد من سجل الأحداث المسجل.
+
+إنشاء الفيديو من السيناريو
+
+تصور لشكل واجهة الإنتاج، وليس زرّاً تشغيلياً في التطبيق الحالي.
+
+عملية التحويل تمر بهذه الخطوات:
+
+1. قراءة سجل السيناريو.
+2. ترتيب الأحداث زمنياً.
+3. تحديد المشاهد المناسبة.
+4. إعادة بناء حركة الوحدات.
+5. اختيار الكاميرات واللقطات.
+6. إضافة العناوين والتواريخ.
+7. توليد الفيديو.
+8. تجهيز المشروع للمونتاج.
+
+## **المرحلة 13: محرر الفيديو**
+
+[Master Video Editing: The Essential Guide to Adobe Premiere Pro | Nexacu](https://images.openai.com/static-rsc-4/51VFs7FUvbKZQQ_g2avJJG9Q1W_hWJcVBxN3TzpHqoTfNJrSIg-gXpYwEq9pVITNtcstzUKr2V2a939SJ15WPj1BKmKmCJ0BPrCauf1kka84q_tlswqYQebrJgB6LglPZFtBoC8xUkQpO2ckzieyMlPgt76u14sEtptNXZY1Hkk?purpose=inline)
+
+[nexacu.com.au](https://nexacu.com.au/insights-blog/master-video-editing-the-essential-guide-to-adobe-premiere-pro/?utm_source=chatgpt.com)
+
+المحرر يحتاج إلى:
+
+- شاشة معاينة.
+- خط زمني متعدد المسارات.
+- تقسيم المشاهد.
+- قص ودمج المقاطع.
+- تحريك بداية ونهاية اللقطات.
+- تعديل الانتقالات.
+- إضافة نصوص وعناوين.
+- تعديل سرعة المشاهد.
+- حذف وإعادة ترتيب المشاهد.
+- إضافة لقطات جديدة.
+- حفظ نسخة المشروع.
+
+والأهم: تعديل الفيديو لا يغير السيناريو الأصلي. يكون لدينا أصل محفوظ وسجل مستقل لنسخة المونتاج.
+
+## **المرحلة 14: الموسيقى والمؤثرات الصوتية**
+
+مكتبة صوتية تشمل:
+
+- موسيقى وثائقية.
+- موسيقى توتر وتصعيد.
+- موسيقى حماسية.
+- مؤثرات عسكرية.
+- أصوات الطائرات والانفجارات.
+- أصوات التنبيهات والاتصالات.
+- أصوات الأجواء المحيطة.
+
+ويجب التحكم بمستوى كل مسار وتوقيته وتلاشي الصوت.
+
+## **المرحلة 15: التعليق الصوتي**
+
+[Video Localization Tool – Translate, Dub & Subtitle Online](https://images.openai.com/static-rsc-4/7C96DE7C5i3Tlg4k7Ep1x9G1YN9pcBJttblmuDsROspc70Txc3O-nwDUvd4tnueaP6BrZMguCNOxdUpgWB2jazrbcaJTmdaD__AKDWnXHMtpetRTqjlGFuW2YTB1uFLHFpXQ4CrsmYwpAug14TR-GenH4i9yyLUQ4M_0hswOkx4?purpose=inline)
+
+[aivideotranslator.ai](https://aivideotranslator.ai/video-localization?utm_source=chatgpt.com)
+
+نظام التعليق الصوتي يدعم:
+
+- كتابة نص التعليق.
+- تقسيم النص إلى فقرات ومشاهد.
+- توليد الصوت بالذكاء الاصطناعي.
+- رفع تسجيل صوتي خارجي.
+- اختيار صوت مناسب.
+- تعديل سرعة الكلام.
+- ضبط توقيت كل فقرة.
+- مزامنة التعليق مع المشاهد.
+- إضافة الترجمة النصية.
+
+## **المرحلة 16: التصدير والنشر**
+
+النتيجة النهائية يجب أن تكون قابلة للتصدير:
+
+- MP4.
+- دقة 720p و1080p و4K عند دعم بيئة المعالجة.
+- 16:9 للفيديوهات التقليدية.
+- 9:16 للمقاطع العمودية.
+- 1:1 للمحتوى المربع.
+- خيارات جودة وصوت ومعدل إطارات.
+
+مع حفظ:
+
+- ملف الفيديو النهائي.
+- ملف المشروع القابل للتعديل.
+- سجل السيناريو الأصلي.
+- الأصول المستخدمة.
+- ملفات التعليق والموسيقى.
+
+النشر المباشر إلى المنصات يمكن أن يكون مرحلة لاحقة بعد اكتمال التصدير.
+
+# **سادساً: الهيكل التقني المقترح**
+
+لا نريد أن ينتهي بنا الأمر بملف `App.tsx` يحمل نصف حضارة بشرية داخله.
+
+بناءً على التقنيات الموجودة في المشروع، أقترح الحفاظ على React وTypeScript وPixiJS وVite، وتطوير البنية تدريجياً.
+
+```
+
+src/
+├── app/
+│   ├── navigation/
+│   ├── workspace/
+│   └── state/
+│
+├── core/
+│   ├── engine/
+│   ├── clock/
+│   ├── events/
+│   ├── replay/
+│   └── history/
+│
+├── world/
+│   ├── countries/
+│   ├── regions/
+│   ├── cities/
+│   ├── factions/
+│   ├── organizations/
+│   └── relationships/
+│
+├── entities/
+│   ├── leaders/
+│   ├── characters/
+│   ├── military/
+│   ├── media/
+│   └── economy/
+│
+├── simulation/
+│   ├── political/
+│   ├── military/
+│   ├── economic/
+│   ├── media/
+│   └── ai-behavior/
+│
+├── map/
+│   ├── renderer/
+│   ├── layers/
+│   ├── camera/
+│   ├── tools/
+│   └── editor/
+│
+├── scenarios/
+│   ├── recorder/
+│   ├── timeline/
+│   ├── snapshots/
+│   ├── replay/
+│   └── serialization/
+│
+├── cinematics/
+│   ├── storyboard/
+│   ├── camera-director/
+│   ├── scene-builder/
+│   ├── transitions/
+│   └── overlays/
+│
+├── video/
+│   ├── renderer/
+│   ├── encoder/
+│   ├── export/
+│   └── profiles/
+│
+├── editor/
+│   ├── timeline/
+│   ├── clips/
+│   ├── text/
+│   ├── effects/
+│   └── project/
+│
+├── audio/
+│   ├── music/
+│   ├── effects/
+│   ├── voiceover/
+│   └── mixer/
+│
+├── assets/
+│   ├── countries/
+│   ├── characters/
+│   ├── units/
+│   ├── maps/
+│   ├── images/
+│   └── sounds/
+│
+└── storage/
+    ├── database/
+    ├── migrations/
+    ├── projects/
+    └── import-export/
+
+```
+
+هذا تقسيم معماري مستهدف، وليس أمراً بإنشاء كل هذه المجلدات دفعة واحدة.
+
+## **أهم قرار تقني: الفصل بين المحاكاة والفيديو**
+
+هناك ثلاث طبقات يجب أن تبقى مستقلة:
+
+| الطبقة            | وظيفتها                       |
+| ----------------- | ----------------------------- |
+| Simulation Engine | تحديد ما يحدث في العالم       |
+| Event Recorder    | تسجيل ما حدث وكيف ومتى        |
+| Video Renderer    | تحويل الأحداث إلى مشاهد مرئية |
+
+إذا تغير تصميم الفيديو، فلا نريد أن تتغير محاكاة الحرب. وإذا عدلنا سيناريو، فلا نريد أن نخسر مشروع المونتاج السابق.
+
+# **سابعاً: خطة التنفيذ الفعلية**
+
+هذه هي المراحل التي أقترح تنفيذها بالترتيب. لن نبني كل شيء مرة واحدة، لأن هذا أسهل طريق لصناعة مشروع ضخم لا يعمل.
+
+## **خارطة التطوير**
+
+الأولوية حسب الاعتماد التقني والقدرة على إنتاج نتائج مرئية، لا حسب عدد الملفات.
+
+1. **المرحلة A: تأسيس العالم**
+
+   الدول، الشخصيات، المنظمات، الفصائل، العلاقات، مكتبة الأصول.
+
+   أولوية أساسية
+2. **المرحلة B: توسيع أدوات التحكم**
+
+   أدوات الدول والجيوش والإعلام والاقتصاد والسياسة، وواجهات تحرير الكيانات.
+3. **المرحلة C: ربط المحاكاة**
+
+   الأحداث الموحدة، العلاقات، الزمن، نتائج القرارات، وسلوك الكيانات.
+4. **المرحلة D: تسجيل السيناريو**
+
+   Action Recorder، الخط الزمني، نقاط الحفظ، وإعادة التشغيل الحتمية.
+5. **المرحلة E: الإخراج السينمائي**
+
+   الكاميرات، اللقطات، انتقالات المشاهد، العناوين، وإعادة بناء المشهد.
+6. **المرحلة F: توليد الفيديو**
+
+   محرك الرندر، المعالجة، التصدير، وإدارة المشاريع.
+7. **المرحلة G: المونتاج والصوت**
+
+   محرر الفيديو، الموسيقى، المؤثرات، التعليق الصوتي، والترجمة.
+8. **المرحلة H: المنتج النهائي**
+
+   الحفظ، القوالب، التصدير بمقاسات متعددة، وتجهيز النشر.
+
+## **ترتيب الأولويات داخل التطوير**
+
+| الأولوية | ما يجب إنجازه                              |
+| -------- | ------------------------------------------ |
+| P0       | ثبات البيانات والأحداث وعدم ضياع السيناريو |
+| P1       | إنشاء العالم والكيانات والتحكم بها         |
+| P2       | محرك الأحداث والتسجيل وإعادة التشغيل       |
+| P3       | إعادة بناء المشاهد وتوليد الفيديو          |
+| P4       | المونتاج والصوت والتعليق                   |
+| P5       | النشر والتكاملات والميزات المتقدمة         |
+
+# **ثامناً: أول نموذج متكامل يجب أن ننجزه**
+
+قبل بناء عشرات الميزات، يجب أن نثبت أن فكرة المشروع كاملة قابلة للعمل من البداية إلى النهاية.
+
+نسميه **Vertical Slice: سيناريو واحد من العالم إلى الفيديو**.
+
+[Tactical battlefield map of Europe with NATO military symbols and red invasion arrows](https://images.openai.com/static-rsc-4/t2ZEb2b6SRuJ1bU05mWiflR2_F2up6wvNh8_Yhq3jZ0qO6yPN8GDuVlShtZzr7VEuYhd-9ltWPMJM5bSWpM2dij9Bm-UOog0Z0rSEGNdJsgU6DlmK9WgDvSkXY8HIx77OBGHfBFBGQa-seAesyqkuomtBa7iDAAgoxEayLbgFNSbap5zzJII19IAL189z-rz?purpose=inline)
+
+يجب أن يستطيع المستخدم تنفيذ التجربة التالية:
+
+1. إنشاء دولتين على الخريطة.
+2. تخصيص أعلامهما وألوانهما.
+3. إضافة قائد لكل دولة.
+4. إنشاء وحدات عسكرية.
+5. تحريك الوحدات على الخريطة.
+6. تنفيذ حدث عسكري مسجل.
+7. إضافة تصريح سياسي أو خبر إعلامي.
+8. حفظ السيناريو.
+9. الضغط على تحويل إلى فيديو.
+10. مشاهدة الأحداث وهي تعاد كمشاهد سينمائية.
+11. إضافة موسيقى وتعليق صوتي.
+12. تصدير فيديو نهائي.
+
+معيار النجاح
+
+إذا نجح هذا النموذج، نكون قد أثبتنا أن المحاكاة والتسجيل والإنتاج تعمل معاً. بعد ذلك نوسع العالم والأنظمة بدلاً من بناء كل شيء على افتراضات.
+
+# **تاسعاً: ما الذي لا ينبغي فعله؟**
+
+هناك قرارات قد تقتل المشروع إذا اتخذناها مبكراً:
+
+1. **لا نعيد بناء التطبيق بالكامل.** نستفيد من المحرك والخريطة والأدوات الحالية.
+2. **لا نجعل كل شيء ذكاءً اصطناعياً.** المحاكاة الأساسية يجب أن تكون قابلة للتوقع والتحكم.
+3. **لا نسجل الشاشة باعتبارها طريقة التسجيل الوحيدة.** نسجل الأحداث، ثم نعيد بناء الفيديو.
+4. **لا نربط المونتاج بالسيناريو الأصلي مباشرة.** كل مشروع فيديو له نسخة مستقلة.
+5. **لا نضع جميع المجالات في واجهة واحدة مزدحمة.** نستخدم أدوات ومساحات عمل متخصصة.
+6. **لا نبني مكتبة أصول ضخمة قبل تحديد نظامها.** نحتاج إلى أصول قابلة لإعادة الاستخدام.
+7. **لا نؤجل الفيديو إلى نهاية المشروع.** يجب أن نثبت مبكراً أن السيناريو يمكن أن يتحول إلى فيديو.
+
+# **عاشراً: كيف سندير التطوير بيننا؟**
+
+هذه نقطة مهمة حتى لا نكرر مشكلة التوقف في تدقيقات لا تنتهي.
+
+| دوري                            | دور Google AI Studio |
+| ------------------------------- | -------------------- |
+| تحديد المعمارية والاتجاه        | تنفيذ التعديلات      |
+| مراجعة الكود المنشور على GitHub | إجراء الاختبارات     |
+| تحديد المهمة التالية            | إصلاح المشكلات       |
+| فحص التكامل بين الأنظمة         | نشر التغييرات        |
+| تقرير الانتقال للمرحلة التالية  | تنفيذ المرحلة        |
+
+سنعمل على دورات قصيرة:
+
+- مهمة واحدة واضحة.
+- نتيجة مرئية أو قدرة جديدة.
+- اختبار عملي.
+- مراجعة النسخة المنشورة على GitHub.
+- الانتقال إلى المهمة التالية.
+
+لن نعيد فتح مرحلة مكتملة لمجرد العثور على تحسين نظري جديد.
+
+# **الحادي عشر: المهمة الأولى التي أوصي بالبدء بها**
+
+لا أوصي بالبدء بإضافة عشرين أداة جديدة. ولا أوصي الآن ببناء محرر الفيديو. الأولوية هي بناء أساس العالم الذي ستستخدمه كل الأنظمة الأخرى.
+
+**TASK 1.0: World Entity Foundation**
+
+الهدف: تأسيس نظام موحد للكيانات والعلاقات في العالم.
+
+يشمل:
+
+- الدول.
+- المناطق والمدن.
+- الزعماء والشخصيات.
+- المؤسسات والمنظمات.
+- الفصائل.
+- الوحدات العسكرية.
+- المؤسسات الإعلامية.
+- العلاقات بين الكيانات.
+- تخزين البيانات وإدارتها.
+
+ويجب أن يظل نظام الدولة الذي بدأنا به جزءاً من هذا الأساس، لا أن يتحول إلى تطبيق منفصل لإدارة ملفات الدول.
+
+لكن هناك قرار معماري يجب تأسيسه من البداية: كل كيان يمتلك معرفاً ثابتاً، ويمكن ربطه بأحداث السيناريو وسجل تاريخه. هذا سيجعل الانتقال إلى التسجيل والمحاكاة والفيديو أكثر سهولة.
+
+## **تصوري النهائي للمنتج**
+
+[GeoStrategic Intelligence Sandbox | Devpost](https://images.openai.com/static-rsc-4/ObOwvVUnb3p-5lCzF5Nzx6TaiST2SDLAuJXHxx6gFL5af2tDdxIJD_i-qkaJYC8yLPSO18jb9PhytZvJF5x5YpgiiuLsYuV3QerJj0vvO8VNHb6XCG5XBs-AgNqwpubyBQuDWYPmniam7QTTmCzvbGwtpkH-kNsIIkd8RchKeDw?purpose=inline)
+
+[Barbarossa Animated Map — WW2 Map Built with AI | Blink](https://images.openai.com/static-rsc-4/qOCf2NtS_bUkvgTqZTvFaZfIQ55jLluFTnGqP2V8rd0EQyNhrJaTAvgVbI1raOPL7EL7gGkXf5lOIuc3Cz7m0xpgFpyMJNfw6GRjAWFuM1O8JiFFyiSxw82EU029r4wCZg-mBxiolYK6xNISnQClftG91EJpaWHHW4LUkc9GWIM?purpose=inline)
+
+[Music for Cinematic Storytelling That Fits Your Scene and License](https://images.openai.com/static-rsc-4/kbcQcMLSx74zZHvgFML-UYrfH-9nolsvrHcKVj0RzbAI8TRumr6KWVGU-6nEKb2tAeTx2xqebJjvQmC_3AnOPKUea6EHlL4IAm-oRz6dqP0Y6n1Rd-nPBt2UPHkO8cl9IjWN1Ezelcp0zlgT53LpERHORzepKJwqPLJP2vcXBjU?purpose=inline)
+
+9
+
+أنت تبني منتجاً يجمع أربع قدرات:
+
+- **World Builder:** صناعة عالم سياسي وجغرافي متكامل.
+- **Simulation Engine:** محاكاة الأحداث والقرارات والصراعات.
+- **Scenario Director:** التحكم في الأحداث وتسجيلها وإعادة إخراجها.
+- **Film Studio:** تحويل السيناريو إلى فيديو احترافي قابل للمونتاج والنشر.
+
+والقاعدة التي سأستخدمها في اتخاذ القرارات التقنية مستقبلاً:
+
+**أي ميزة نضيفها يجب أن تخدم صناعة العالم، أو محاكاة أحداثه، أو تحويل أحداثه إلى إنتاج مرئي.**
+
+هذا هو الاتجاه. والخطوة العملية الأولى هي تأسيس عالم الكيانات، مع مراعاة أن كل شيء سنبنيه منذ الآن يجب أن يكون قابلاً للتسجيل وإعادة الإخراج لاحقاً.

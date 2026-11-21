@@ -1,0 +1,8 @@
+{
+  "name": "Remix RW-Style Visual Scenario Studio",
+  "description": "استوديو تفاعلي لمحاكاة السيناريوهات التكتيكية والجيوسياسية بمحرك حتمي 30 TPS وخوارزمية A* وتحرير YAML حي وتصدير فيديو WebM.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

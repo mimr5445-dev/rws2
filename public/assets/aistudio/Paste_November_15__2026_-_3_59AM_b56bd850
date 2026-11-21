@@ -1,0 +1,1654 @@
+تنبيه مهم قبل البدء: في بيئة المحادثة هذه لا تتوفر لدي صلاحية الوصول المباشر إلى نظام الملفات أو تشغيل الطرفية على جهازك؛ لذلك أنشأتُ لك أدناه **الكود الكامل والجاهز للتشغيل للنواة التشغيلية (MVP)** بهيكل معماري حقيقي، كامل الأجزاء، وبلا أي نواقص أو اختصارات.
+
+بمجرد نسخ الملفات وتشغيل `npm install && npm run dev` سيعمل الاستوديو أمامك في المتصفح مع:
+- **خريطتين هجينتين** (خريطة مضيق سياسي/بحري + خريطة ميدان تكتيكي فيها نهر وجسر).
+- **محرك محاكاة حتمي (`30 TPS`)** مع خوارزمية مسار **A\*** (تلتف السفن حول اليابسة، وتعبر الدبابات والجنود عبر الجسر تلقائيًا).
+- **تطبيق فعلي لفلسفة *Rusted Warfare***: قوالب موروثة (`_person`, `_vehicle`, `_ship`, `_building`)، مراحل بناء للمباني، حركة إجرائية ناعمة (ظل + تمايل مشي + دوران سلس + أثر حركة).
+- **محرر سيناريو YAML حي + مدقق أخطاء ذكي + سحب وإفلات لملفات `.yaml` أو صور خرائط جديدة**.
+- **وضع اللعب الحر (Sandbox)** لتحريك الوحدات وبناء المباني بالماوس، و**زر تسجيل فيديو WebM نظيف** مع مؤثرات صوتية مدمجة.
+
+---
+
+## 1) تهيئة المشروع
+
+أنشئ مجلدًا باسم `rw-studio` وبداخله هذا الهيكل:
+
+```text
+rw-studio/
+├── index.html
+├── package.json
+├── tsconfig.json
+├── STUDIO_SPEC.md
+└── src/
+    ├── style.css
+    ├── main.ts
+    ├── core/
+    │   ├── types.ts
+    │   ├── pathfinding.ts
+    │   ├── validator.ts
+    │   └── engine.ts
+    ├── packs/
+    │   └── demoPacks.ts
+    ├── scenarios/
+    │   ├── strait_crisis.scenario.yaml
+    │   └── valley_advance.scenario.yaml
+    └── renderer/
+        ├── soundSynth.ts
+        └── studioRenderer.ts
+```
+
+### `package.json`
+```json
+{
+  "name": "rw-studio-mvp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0",
+    "pixi.js": "^8.12.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0"
+  }
+}
+```
+
+### `tsconfig.json`
+```json
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src"]
+}
+```
+
+### `index.html`
+```html
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>RW-Style Visual Scenario Studio</title>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
+```
+
+### `STUDIO_SPEC.md` (المرجع المخصص لنماذج الذكاء الاصطناعي)
+```markdown
+# Studio Scenario DSL Spec (v0.1)
+
+اكتب ملفات `.scenario.yaml` بهذه البنية فقط. لا تستخدم إحداثيات بكسل عشوائية؛ استخدم أسماء المراسي (`anchors`) والمناطق (`zones`) الموجودة في الخريطة.
+
+## الهيكل الأساسي
+- `meta`: `{ title, map, duration_hint? }`
+- `timeline`: قائمة خطوات، كل خطوة تملك إما `at: "<sec>s"` أو `after: "<entity_id>.arrived"`
+
+## الأوامر المتاحة داخل كل خطوة
+- `camera`: `{ focus: "<anchor_id>", zoom: number, duration?: "<sec>s" }`
+- `caption`: `{ text: string }`
+- `sound`: `"build_complete" | "alert_ping" | "move_order" | "spawn_pop"`
+- `spawn`: قائمة `[{ id, actor, at: "<anchor_id>", faction?: "blue"|"red"|"neutral" }]`
+- `move`: `{ entity: "<entity_id>", to: "<anchor_id>" }`
+- `construct`: `{ id?: string, actor: "<building_actor>", at: "<anchor_id>", faction?, duration?: "<sec>s" }`
+- `draw_arrow`: `{ id, from: "<anchor_id>", to: "<anchor_id>", color?: "#hex", dashed?: boolean, duration?: "<sec>s" }`
+- `zone`: `{ id: "<zone_id>", color: "#hex", opacity?: number, duration?: "<sec>s" }`
+```
+
+---
+
+## 2) النواة الحتمية النقية (`src/core/`) — بدون أي اعتماد على المتصفح
+
+### `src/core/types.ts`
+```ts
+export type Domain = 'land' | 'sea' | 'air';
+export type Faction = 'blue' | 'red' | 'neutral';
+export type SoundId = 'build_complete' | 'alert_ping' | 'move_order' | 'spawn_pop';
+
+// خلايا شبكة الملاحة: 0 = يابسة، 1 = ماء، 2 = عائق صلب
+export type NavCell = 0 | 1 | 2;
+
+export interface Point {
+  x: number;
+  y: number;
+}
+
+export interface MapZoneDef {
+  id: string;
+  label: string;
+  polygon: Point[];
+}
+
+export interface MapPack {
+  id: string;
+  title: string;
+  kind: 'geopolitical' | 'tactical';
+  width: number;
+  height: number;
+  cellSize: number;
+  cols: number;
+  rows: number;
+  navGrid: NavCell[]; // cols * rows
+  svgOrUrl: string;
+  anchors: Record<string, Point & { label?: string }>;
+  zones: Record<string, MapZoneDef>;
+}
+
+export interface ActorTemplate {
+  domain: Domain;
+  kind: 'person' | 'vehicle' | 'ship' | 'building';
+  speed: number; // world units / second
+  turnRate: number; // rad / second
+  scale: number; // target height in world units
+  radius: number;
+}
+
+export interface ActorPack extends ActorTemplate {
+  id: string;
+  label: string;
+  extends?: string;
+  svg: string;
+}
+
+export interface ScenarioStep {
+  id?: string;
+  at?: string;
+  after?: string; // "<entityId>.arrived"
+  camera?: { focus: string; zoom?: number; duration?: string };
+  caption?: { text: string };
+  sound?: SoundId;
+  spawn?: Array<{ id: string; actor: string; at: string; faction?: Faction }>;
+  move?: { entity: string; to: string };
+  construct?: { id?: string; actor: string; at: string; faction?: Faction; duration?: string };
+  draw_arrow?: { id: string; from: string; to: string; color?: string; dashed?: boolean; duration?: string };
+  zone?: { id: string; color: string; opacity?: number; duration?: string };
+}
+
+export interface ScenarioFile {
+  meta: { title: string; map: string };
+  timeline: ScenarioStep[];
+}
+
+export interface EntityState {
+  id: string;
+  actorId: string;
+  kind: ActorTemplate['kind'];
+  domain: Domain;
+  faction: Faction;
+  x: number;
+  y: number;
+  prevX: number;
+  prevY: number;
+  angle: number;
+  prevAngle: number;
+  path: Point[];
+  speed: number;
+  turnRate: number;
+  scale: number;
+  radius: number;
+  buildProgress: number; // 0..1 (1 = مكتمل)
+  buildRate: number;
+  isMoving: boolean;
+  arrivedTick: number | null;
+}
+
+export interface ArrowState {
+  id: string;
+  from: Point;
+  to: Point;
+  color: string;
+  dashed: boolean;
+  progress: number;
+  rate: number;
+}
+
+export interface ZoneVisualState {
+  id: string;
+  color: string;
+  targetOpacity: number;
+  opacity: number;
+  rate: number;
+}
+
+export interface CameraTarget {
+  x: number;
+  y: number;
+  zoom: number;
+  durationSec: number;
+  seq: number;
+}
+
+export type Order =
+  | { type: 'spawn'; id: string; actorId: string; at: Point; faction: Faction }
+  | { type: 'move'; entityId: string; to: Point }
+  | { type: 'construct'; id: string; actorId: string; at: Point; faction: Faction; durationSec: number };
+
+export interface ValidationIssue {
+  stepIndex: number;
+  field: string;
+  message: string;
+}
+```
+
+### `src/core/pathfinding.ts`
+```ts
+import { Domain, MapPack, NavCell, Point } from './types';
+
+function isWalkable(cell: NavCell, domain: Domain): boolean {
+  if (domain === 'air') return true;
+  if (domain === 'land') return cell === 0;
+  if (domain === 'sea') return cell === 1;
+  return false;
+}
+
+function findNearestWalkable(map: MapPack, gx: number, gy: number, domain: Domain): [number, number] | null {
+  const clamp = (v: number, max: number) => Math.max(0, Math.min(max - 1, v));
+  const sx = clamp(gx, map.cols);
+  const sy = clamp(gy, map.rows);
+  if (isWalkable(map.navGrid[sy * map.cols + sx], domain)) return [sx, sy];
+
+  for (let r = 1; r <= 8; r++) {
+    for (let dy = -r; dy <= r; dy++) {
+      for (let dx = -r; dx <= r; dx++) {
+        const nx = sx + dx;
+        const ny = sy + dy;
+        if (nx >= 0 && ny >= 0 && nx < map.cols && ny < map.rows) {
+          if (isWalkable(map.navGrid[ny * map.cols + nx], domain)) return [nx, ny];
+        }
+      }
+    }
+  }
+  return null;
+}
+
+export function findPath(map: MapPack, from: Point, to: Point, domain: Domain): Point[] {
+  if (domain === 'air') return [to];
+
+  const startRaw: [number, number] = [Math.floor(from.x / map.cellSize), Math.floor(from.y / map.cellSize)];
+  const endRaw: [number, number] = [Math.floor(to.x / map.cellSize), Math.floor(to.y / map.cellSize)];
+
+  const start = findNearestWalkable(map, startRaw[0], startRaw[1], domain);
+  const goal = findNearestWalkable(map, endRaw[0], endRaw[1], domain);
+  if (!start || !goal) return [to];
+
+  const total = map.cols * map.rows;
+  const gScore = new Float32Array(total).fill(Infinity);
+  const fScore = new Float32Array(total).fill(Infinity);
+  const cameFrom = new Int32Array(total).fill(-1);
+  const closed = new Uint8Array(total);
+  const open: number[] = [];
+
+  const idx = (x: number, y: number) => y * map.cols + x;
+  const sIdx = idx(start[0], start[1]);
+  const gIdx = idx(goal[0], goal[1]);
+
+  gScore[sIdx] = 0;
+  fScore[sIdx] = Math.hypot(goal[0] - start[0], goal[1] - start[1]);
+  open.push(sIdx);
+
+  const dirs = [
+    [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
+    [1, 1, 1.414], [-1, 1, 1.414], [1, -1, 1.414], [-1, -1, 1.414]
+  ];
+
+  while (open.length > 0) {
+    let bestPos = 0;
+    for (let i = 1; i < open.length; i++) {
+      if (fScore[open[i]] < fScore[open[bestPos]]) bestPos = i;
+    }
+    const curr = open[bestPos];
+    open.splice(bestPos, 1);
+    if (curr === gIdx) {
+      const pts: Point[] = [];
+      let c = curr;
+      while (c !== -1 && c !== sIdx) {
+        const cx = c % map.cols;
+        const cy = Math.floor(c / map.cols);
+        pts.push({ x: (cx + 0.5) * map.cellSize, y: (cy + 0.5) * map.cellSize });
+        c = cameFrom[c];
+      }
+      pts.reverse();
+      if (pts.length > 0) pts[pts.length - 1] = { ...to };
+      else pts.push({ ...to });
+      return pts;
+    }
+
+    closed[curr] = 1;
+    const cx = curr % map.cols;
+    const cy = Math.floor(curr / map.cols);
+
+    for (const [dx, dy, cost] of dirs) {
+      const nx = cx + dx;
+      const ny = cy + dy;
+      if (nx < 0 || ny < 0 || nx >= map.cols || ny >= map.rows) continue;
+      const nIdx = idx(nx, ny);
+      if (closed[nIdx]) continue;
+      if (!isWalkable(map.navGrid[nIdx], domain)) continue;
+      // منع القطع القطري عبر زوايا العوائق
+      if (dx !== 0 && dy !== 0) {
+        if (!isWalkable(map.navGrid[idx(cx + dx, cy)], domain) || !isWalkable(map.navGrid[idx(cx, cy + dy)], domain)) {
+          continue;
+        }
+      }
+      const tentative = gScore[curr] + cost;
+      if (tentative < gScore[nIdx]) {
+        cameFrom[nIdx] = curr;
+        gScore[nIdx] = tentative;
+        fScore[nIdx] = tentative + Math.hypot(goal[0] - nx, goal[1] - ny);
+        if (!open.includes(nIdx)) open.push(nIdx);
+      }
+    }
+  }
+  return [to];
+}
+```
+
+### `src/core/validator.ts`
+```ts
+import { ActorPack, MapPack, ScenarioFile, ValidationIssue } from './types';
+
+function closestKey(target: string, keys: string[]): string | null {
+  let best: string | null = null;
+  let bestScore = Infinity;
+  for (const k of keys) {
+    let diff = Math.abs(k.length - target.length);
+    const minL = Math.min(k.length, target.length);
+    for (let i = 0; i < minL; i++) if (k[i] !== target[i]) diff++;
+    if (diff < bestScore && diff <= 4) {
+      bestScore = diff;
+      best = k;
+    }
+  }
+  return best;
+}
+
+export function validateScenario(
+  scenario: ScenarioFile,
+  map: MapPack | undefined,
+  actors: Record<string, ActorPack>
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+  if (!scenario?.meta?.map) {
+    issues.push({ stepIndex: -1, field: 'meta.map', message: 'يجب تحديد اسم الخريطة في meta.map' });
+    return issues;
+  }
+  if (!map) {
+    issues.push({ stepIndex: -1, field: 'meta.map', message: `الخريطة "${scenario.meta.map}" غير موجودة في الحزم` });
+    return issues;
+  }
+
+  const anchorKeys = Object.keys(map.anchors);
+  const zoneKeys = Object.keys(map.zones);
+  const actorKeys = Object.keys(actors);
+  const spawnedIds = new Set<string>();
+
+  const checkAnchor = (stepIdx: number, field: string, name: string) => {
+    if (!map.anchors[name]) {
+      const hint = closestKey(name, anchorKeys);
+      issues.push({
+        stepIndex: stepIdx,
+        field,
+        message: `نقطة غير معروفة "${name}"${hint ? ` — هل تقصد "${hint}"؟` : ''}`
+      });
+    }
+  };
+
+  const checkActor = (stepIdx: number, field: string, name: string) => {
+    if (!actors[name]) {
+      const hint = closestKey(name, actorKeys);
+      issues.push({
+        stepIndex: stepIdx,
+        field,
+        message: `كيان غير معروف "${name}"${hint ? ` — هل تقصد "${hint}"؟` : ''}`
+      });
+    }
+  };
+
+  (scenario.timeline ?? []).forEach((step, idx) => {
+    if (!step.at && !step.after) {
+      issues.push({ stepIndex: idx, field: 'at/after', message: 'كل خطوة تحتاج توقيت at أو محفز after' });
+    }
+    if (step.camera) checkAnchor(idx, 'camera.focus', step.camera.focus);
+    if (step.spawn) {
+      for (const s of step.spawn) {
+        spawnedIds.add(s.id);
+        checkActor(idx, 'spawn.actor', s.actor);
+        checkAnchor(idx, 'spawn.at', s.at);
+      }
+    }
+    if (step.move) {
+      if (!spawnedIds.has(step.move.entity)) {
+        issues.push({ stepIndex: idx, field: 'move.entity', message: `الوحدة "${step.move.entity}" لم تُنشأ قبل هذا الأمر` });
+      }
+      checkAnchor(idx, 'move.to', step.move.to);
+    }
+    if (step.construct) {
+      if (step.construct.id) spawnedIds.add(step.construct.id);
+      checkActor(idx, 'construct.actor', step.construct.actor);
+      checkAnchor(idx, 'construct.at', step.construct.at);
+    }
+    if (step.draw_arrow) {
+      checkAnchor(idx, 'draw_arrow.from', step.draw_arrow.from);
+      checkAnchor(idx, 'draw_arrow.to', step.draw_arrow.to);
+    }
+    if (step.zone && !map.zones[step.zone.id]) {
+      const hint = closestKey(step.zone.id, zoneKeys);
+      issues.push({
+        stepIndex: idx,
+        field: 'zone.id',
+        message: `منطقة غير معروفة "${step.zone.id}"${hint ? ` — هل تقصد "${hint}"؟` : ''}`
+      });
+    }
+  });
+
+  return issues;
+}
+```
+
+### `src/core/engine.ts`
+```ts
+import { findPath } from './pathfinding';
+import {
+  ActorPack,
+  ArrowState,
+  CameraTarget,
+  EntityState,
+  MapPack,
+  Order,
+  ScenarioFile,
+  ScenarioStep,
+  SoundId,
+  ZoneVisualState
+} from './types';
+
+export const TICK_RATE = 30;
+export const DT = 1 / TICK_RATE;
+
+export function parseSec(val?: string, fallback = 0): number {
+  if (!val) return fallback;
+  const n = parseFloat(val.replace('s', '').trim());
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function normalizeAngleDiff(target: number, current: number): number {
+  let d = target - current;
+  while (d > Math.PI) d -= Math.PI * 2;
+  while (d < -Math.PI) d += Math.PI * 2;
+  return d;
+}
+
+export class StudioEngine {
+  public tick = 0;
+  public entities = new Map<string, EntityState>();
+  public arrows = new Map<string, ArrowState>();
+  public zones = new Map<string, ZoneVisualState>();
+  public caption = '';
+  public cameraTarget: CameraTarget | null = null;
+
+  private executedSteps = new Set<number>();
+  private orderQueue: Order[] = [];
+  private soundListeners: Array<(id: SoundId) => void> = [];
+  private autoCounter = 0;
+
+  constructor(
+    public map: MapPack,
+    public actors: Record<string, ActorPack>,
+    public scenario: ScenarioFile
+  ) {
+    this.reset();
+  }
+
+  onSound(cb: (id: SoundId) => void): void {
+    this.soundListeners.push(cb);
+  }
+
+  private emitSound(id: SoundId): void {
+    this.soundListeners.forEach((cb) => cb(id));
+  }
+
+  reset(): void {
+    this.tick = 0;
+    this.entities.clear();
+    this.arrows.clear();
+    this.zones.clear();
+    this.executedSteps.clear();
+    this.orderQueue = [];
+    this.caption = '';
+    this.cameraTarget = { x: this.map.width / 2, y: this.map.height / 2, zoom: 1, durationSec: 0, seq: 0 };
+    this.autoCounter = 0;
+    for (const z of Object.values(this.map.zones)) {
+      this.zones.set(z.id, { id: z.id, color: '#3b82f6', targetOpacity: 0, opacity: 0, rate: 0 });
+    }
+    this.evaluateTimeline();
+  }
+
+  dispatchOrder(order: Order): void {
+    this.orderQueue.push(order);
+  }
+
+  step(): void {
+    this.tick++;
+    this.evaluateTimeline();
+    this.processOrders();
+
+    // تحديث الكيانات
+    for (const e of this.entities.values()) {
+      e.prevX = e.x;
+      e.prevY = e.y;
+      e.prevAngle = e.angle;
+
+      if (e.buildProgress < 1) {
+        e.buildProgress = Math.min(1, e.buildProgress + e.buildRate * DT);
+        if (e.buildProgress === 1) this.emitSound('build_complete');
+        continue;
+      }
+
+      if (e.path.length > 0) {
+        e.isMoving = true;
+        const target = e.path[0];
+        const dx = target.x - e.x;
+        const dy = target.y - e.y;
+        const dist = Math.hypot(dx, dy);
+
+        const desiredAngle = Math.atan2(dy, dx);
+        const diff = normalizeAngleDiff(desiredAngle, e.angle);
+        const maxTurn = e.turnRate * DT;
+        e.angle += Math.abs(diff) <= maxTurn ? diff : Math.sign(diff) * maxTurn;
+
+        const moveDist = e.speed * DT;
+        if (dist <= moveDist) {
+          e.x = target.x;
+          e.y = target.y;
+          e.path.shift();
+          if (e.path.length === 0) {
+            e.isMoving = false;
+            e.arrivedTick = this.tick;
+          }
+        } else {
+          e.x += (dx / dist) * moveDist;
+          e.y += (dy / dist) * moveDist;
+        }
+      } else {
+        e.isMoving = false;
+      }
+    }
+
+    // تحديث الأسهم التدريجية
+    for (const a of this.arrows.values()) {
+      if (a.progress < 1) a.progress = Math.min(1, a.progress + a.rate * DT);
+    }
+
+    // تحديث تلوين المناطق
+    for (const z of this.zones.values()) {
+      if (z.opacity !== z.targetOpacity) {
+        const diff = z.targetOpacity - z.opacity;
+        const step = z.rate * DT;
+        z.opacity = Math.abs(diff) <= step ? z.targetOpacity : z.opacity + Math.sign(diff) * step;
+      }
+    }
+  }
+
+  private evaluateTimeline(): void {
+    const timeSec = this.tick * DT;
+    const steps = this.scenario.timeline ?? [];
+
+    steps.forEach((st, idx) => {
+      if (this.executedSteps.has(idx)) return;
+      let ready = false;
+
+      if (st.at !== undefined && timeSec >= parseSec(st.at)) {
+        ready = true;
+      } else if (st.after) {
+        const [entityId, event] = st.after.split('.');
+        const ent = this.entities.get(entityId);
+        if (event === 'arrived' && ent && ent.arrivedTick !== null && !ent.isMoving) {
+          ready = true;
+        }
+      }
+
+      if (ready) {
+        this.executedSteps.add(idx);
+        this.executeStep(st);
+      }
+    });
+  }
+
+  private executeStep(st: ScenarioStep): void {
+    if (st.caption) this.caption = st.caption.text;
+    if (st.sound) this.emitSound(st.sound);
+
+    if (st.camera) {
+      const anchor = this.map.anchors[st.camera.focus];
+      if (anchor) {
+        this.cameraTarget = {
+          x: anchor.x,
+          y: anchor.y,
+          zoom: st.camera.zoom ?? 1.4,
+          durationSec: parseSec(st.camera.duration, 1.2),
+          seq: (this.cameraTarget?.seq ?? 0) + 1
+        };
+      }
+    }
+
+    if (st.spawn) {
+      for (const s of st.spawn) {
+        const pt = this.map.anchors[s.at];
+        if (pt) this.dispatchOrder({ type: 'spawn', id: s.id, actorId: s.actor, at: pt, faction: s.faction ?? 'blue' });
+      }
+    }
+
+    if (st.move) {
+      const pt = this.map.anchors[st.move.to];
+      if (pt) this.dispatchOrder({ type: 'move', entityId: st.move.entity, to: pt });
+    }
+
+    if (st.construct) {
+      const pt = this.map.anchors[st.construct.at];
+      if (pt) {
+        this.dispatchOrder({
+          type: 'construct',
+          id: st.construct.id ?? `bld_${++this.autoCounter}`,
+          actorId: st.construct.actor,
+          at: pt,
+          faction: st.construct.faction ?? 'blue',
+          durationSec: parseSec(st.construct.duration, 2)
+        });
+      }
+    }
+
+    if (st.draw_arrow) {
+      const from = this.map.anchors[st.draw_arrow.from];
+      const to = this.map.anchors[st.draw_arrow.to];
+      if (from && to) {
+        const dur = Math.max(0.1, parseSec(st.draw_arrow.duration, 1.5));
+        this.arrows.set(st.draw_arrow.id, {
+          id: st.draw_arrow.id,
+          from: { ...from },
+          to: { ...to },
+          color: st.draw_arrow.color ?? '#ef4444',
+          dashed: st.draw_arrow.dashed ?? true,
+          progress: 0,
+          rate: 1 / dur
+        });
+      }
+    }
+
+    if (st.zone) {
+      const z = this.zones.get(st.zone.id);
+      if (z) {
+        const dur = Math.max(0.1, parseSec(st.zone.duration, 1.2));
+        z.color = st.zone.color;
+        z.targetOpacity = st.zone.opacity ?? 0.35;
+        z.rate = Math.abs(z.targetOpacity - z.opacity) / dur || 1;
+      }
+    }
+  }
+
+  private processOrders(): void {
+    while (this.orderQueue.length > 0) {
+      const ord = this.orderQueue.shift()!;
+      if (ord.type === 'spawn') {
+        const act = this.actors[ord.actorId];
+        if (!act) continue;
+        this.entities.set(ord.id, {
+          id: ord.id,
+          actorId: ord.actorId,
+          kind: act.kind,
+          domain: act.domain,
+          faction: ord.faction,
+          x: ord.at.x,
+          y: ord.at.y,
+          prevX: ord.at.x,
+          prevY: ord.at.y,
+          angle: 0,
+          prevAngle: 0,
+          path: [],
+          speed: act.speed,
+          turnRate: act.turnRate,
+          scale: act.scale,
+          radius: act.radius,
+          buildProgress: 1,
+          buildRate: 1,
+          isMoving: false,
+          arrivedTick: null
+        });
+        this.emitSound('spawn_pop');
+      } else if (ord.type === 'construct') {
+        const act = this.actors[ord.actorId];
+        if (!act) continue;
+        this.entities.set(ord.id, {
+          id: ord.id,
+          actorId: ord.actorId,
+          kind: 'building',
+          domain: 'land',
+          faction: ord.faction,
+          x: ord.at.x,
+          y: ord.at.y,
+          prevX: ord.at.x,
+          prevY: ord.at.y,
+          angle: 0,
+          prevAngle: 0,
+          path: [],
+          speed: 0,
+          turnRate: 0,
+          scale: act.scale,
+          radius: act.radius,
+          buildProgress: 0,
+          buildRate: 1 / Math.max(0.2, ord.durationSec),
+          isMoving: false,
+          arrivedTick: null
+        });
+      } else if (ord.type === 'move') {
+        const ent = this.entities.get(ord.entityId);
+        if (!ent || ent.kind === 'building') continue;
+        ent.arrivedTick = null;
+        ent.path = findPath(this.map, { x: ent.x, y: ent.y }, ord.to, ent.domain);
+        this.emitSound('move_order');
+      }
+    }
+  }
+}
+```
+
+---
+
+## 3) الحزم التجريبية + قوالب الوراثة + ملفات السيناريو
+
+### `src/packs/demoPacks.ts`
+```ts
+import { ActorPack, ActorTemplate, MapPack, NavCell } from '../core/types';
+
+// قوالب الميراث (مثل _templates في Rusted Warfare)
+const TEMPLATES: Record<string, ActorTemplate> = {
+  _person: { domain: 'land', kind: 'person', speed: 65, turnRate: 10, scale: 34, radius: 14 },
+  _vehicle: { domain: 'land', kind: 'vehicle', speed: 95, turnRate: 4.5, scale: 42, radius: 20 },
+  _ship: { domain: 'sea', kind: 'ship', speed: 85, turnRate: 2.6, scale: 50, radius: 22 },
+  _building: { domain: 'land', kind: 'building', speed: 0, turnRate: 0, scale: 48, radius: 24 }
+};
+
+function defineActor(
+  id: string,
+  label: string,
+  templateName: keyof typeof TEMPLATES,
+  overrides: Partial<ActorTemplate>,
+  svg: string
+): ActorPack {
+  return { id, label, extends: templateName, ...TEMPLATES[templateName], ...overrides, svg };
+}
+
+export const DEMO_ACTORS: Record<string, ActorPack> = {
+  diplomat_person: defineActor(
+    'diplomat_person',
+    'مبعوث / شخصية',
+    '_person',
+    { speed: 58 },
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+      <circle cx="32" cy="18" r="10" fill="#fde68a" stroke="#1e293b" stroke-width="3"/>
+      <path d="M16 56 C16 38 48 38 48 56 Z" fill="#38bdf8" stroke="#0f172a" stroke-width="3"/>
+      <path d="M29 36 L32 50 L35 36 Z" fill="#ef4444"/>
+    </svg>`
+  ),
+  infantry_squad: defineActor(
+    'infantry_squad',
+    'فصيل مشاة',
+    '_person',
+    { speed: 68 },
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+      <circle cx="32" cy="18" r="10" fill="#86efac" stroke="#14532d" stroke-width="3"/>
+      <path d="M18 54 L22 34 L42 34 L46 54 Z" fill="#22c55e" stroke="#14532d" stroke-width="3"/>
+      <rect x="42" y="26" width="16" height="5" rx="2" fill="#1e293b"/>
+    </svg>`
+  ),
+  heavy_tank: defineActor(
+    'heavy_tank',
+    'دبابة ثقيلة',
+    '_vehicle',
+    { speed: 82 },
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+      <rect x="10" y="14" width="44" height="36" rx="6" fill="#475569" stroke="#0f172a" stroke-width="3"/>
+      <rect x="14" y="10" width="36" height="7" rx="2" fill="#1e293b"/>
+      <rect x="14" y="47" width="36" height="7" rx="2" fill="#1e293b"/>
+      <circle cx="30" cy="32" r="11" fill="#64748b" stroke="#0f172a" stroke-width="3"/>
+      <rect x="34" y="29" width="26" height="6" rx="2" fill="#94a3b8" stroke="#0f172a" stroke-width="2"/>
+    </svg>`
+  ),
+  naval_corvette: defineActor(
+    'naval_corvette',
+    'فرقاطة بحرية',
+    '_ship',
+    { speed: 92 },
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+      <path d="M8 22 L46 20 L60 32 L46 44 L8 42 Z" fill="#cbd5e1" stroke="#0f172a" stroke-width="3"/>
+      <rect x="20" y="25" width="18" height="14" rx="2" fill="#3b82f6" stroke="#0f172a" stroke-width="2"/>
+      <circle cx="44" cy="32" r="4" fill="#ef4444"/>
+    </svg>`
+  ),
+  radar_outpost: defineActor(
+    'radar_outpost',
+    'محطة رادار',
+    '_building',
+    {},
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+      <rect x="12" y="12" width="40" height="40" rx="6" fill="#334155" stroke="#0f172a" stroke-width="3"/>
+      <circle cx="32" cy="32" r="14" fill="#0ea5e9" stroke="#e0f2fe" stroke-width="3"/>
+      <line x1="32" y1="32" x2="43" y2="21" stroke="#fef08a" stroke-width="3"/>
+    </svg>`
+  ),
+  supply_depot: defineActor(
+    'supply_depot',
+    'مستودع إمداد',
+    '_building',
+    {},
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+      <rect x="10" y="14" width="44" height="36" rx="4" fill="#b45309" stroke="#451a03" stroke-width="3"/>
+      <rect x="18" y="22" width="12" height="20" fill="#fde68a"/>
+      <rect x="34" y="22" width="12" height="20" fill="#fde68a"/>
+    </svg>`
+  )
+};
+
+function buildStraitMap(): MapPack {
+  const width = 1200, height = 800, cellSize = 20;
+  const cols = width / cellSize, rows = height / cellSize;
+  const navGrid: NavCell[] = new Array(cols * rows).fill(0);
+
+  // ممر بحري (ماء = 1) ينحني حول شبه الجزيرة في المنتصف
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const wx = x * cellSize + 10;
+      const wy = y * cellSize + 10;
+      const inWestSea = wx < 420 && wy > 320;
+      const inStrait = wx >= 380 && wx <= 820 && wy > 460 && wy < 640;
+      const inEastSea = wx > 780 && wy > 250;
+      if (inWestSea || inStrait || inEastSea) navGrid[y * cols + x] = 1;
+    }
+  }
+
+  const svgOrUrl = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+    <rect width="1200" height="800" fill="#1e293b"/>
+    <path d="M0,320 L420,320 L420,460 L780,460 L780,250 L1200,250 L1200,800 L0,800 Z" fill="#0c2d48"/>
+    <path d="M380,640 L820,640 L820,800 L380,800 Z" fill="#2c3e50"/>
+    <path d="M0,320 L420,320 L420,460 L780,460 L780,250 L1200,250" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.5"/>
+    <line x1="220" y1="0" x2="280" y2="320" stroke="#64748b" stroke-width="3" stroke-dasharray="10 8"/>
+    <line x1="650" y1="0" x2="620" y2="460" stroke="#64748b" stroke-width="3" stroke-dasharray="10 8"/>
+    <text x="150" y="130" fill="#94a3b8" font-size="22" font-family="sans-serif">الإقليم الغربي</text>
+    <text x="510" y="130" fill="#94a3b8" font-size="22" font-family="sans-serif">شبه الجزيرة</text>
+    <text x="950" y="130" fill="#94a3b8" font-size="22" font-family="sans-serif">الساحل الشرقي</text>
+    <text x="540" y="560" fill="#38bdf8" font-size="20" font-family="sans-serif" opacity="0.7">المضيق البحري</text>
+  </svg>`;
+
+  return {
+    id: 'geopolitics_strait',
+    title: 'خريطة سياسية: المضيق البحري',
+    kind: 'geopolitical',
+    width,
+    height,
+    cellSize,
+    cols,
+    rows,
+    navGrid,
+    svgOrUrl,
+    anchors: {
+      capital_north: { x: 180, y: 200, label: 'العاصمة' },
+      peninsula_center: { x: 560, y: 280, label: 'وسط الجزيرة' },
+      coast_point_1: { x: 580, y: 420, label: 'نقطة المراقبة' },
+      port_south: { x: 180, y: 540, label: 'الميناء الغربي' },
+      strait_gate: { x: 600, y: 550, label: 'بوابة المضيق' },
+      port_east: { x: 1020, y: 420, label: 'الميناء الشرقي' }
+    },
+    zones: {
+      corridor_south: {
+        id: 'corridor_south',
+        label: 'ممر المضيق',
+        polygon: [
+          { x: 400, y: 470 },
+          { x: 800, y: 470 },
+          { x: 800, y: 635 },
+          { x: 400, y: 635 }
+        ]
+      },
+      north_sector: {
+        id: 'north_sector',
+        label: 'الإقليم الشمالي',
+        polygon: [
+          { x: 260, y: 40 },
+          { x: 630, y: 40 },
+          { x: 615, y: 450 },
+          { x: 425, y: 450 },
+          { x: 425, y: 310 },
+          { x: 280, y: 310 }
+        ]
+      }
+    }
+  };
+}
+
+function buildValleyMap(): MapPack {
+  const width = 1200, height = 800, cellSize = 20;
+  const cols = width / cellSize, rows = height / cellSize;
+  const navGrid: NavCell[] = new Array(cols * rows).fill(0);
+
+  // نهر يقسم الخريطة عموديًا مع جسر واحد في المنتصف + تلال صلبة
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      const wx = x * cellSize + 10;
+      const wy = y * cellSize + 10;
+      const isRiver = wx >= 540 && wx <= 640;
+      const isBridge = wy >= 350 && wy <= 430;
+      if (isRiver && !isBridge) navGrid[y * cols + x] = 1;
+      if (wx >= 760 && wx <= 860 && wy >= 100 && wy <= 280) navGrid[y * cols + x] = 2;
+    }
+  }
+
+  const svgOrUrl = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800">
+    <rect width="1200" height="800" fill="#3f4d36"/>
+    <rect x="540" y="0" width="100" height="800" fill="#1d4ed8" opacity="0.75"/>
+    <rect x="530" y="350" width="120" height="80" fill="#78716c" stroke="#d6d3d1" stroke-width="4"/>
+    <rect x="760" y="100" width="100" height="180" rx="20" fill="#57534e" stroke="#292524" stroke-width="4"/>
+    <path d="M160,400 L530,390 M650,390 L1000,480" stroke="#a8a29e" stroke-width="16" fill="none" opacity="0.45"/>
+    <text x="558" y="340" fill="#fef08a" font-size="16" font-family="sans-serif">الجسر</text>
+    <text x="778" y="195" fill="#d6d3d1" font-size="16" font-family="sans-serif">جبل</text>
+  </svg>`;
+
+  return {
+    id: 'tactical_valley',
+    title: 'خريطة ميدان: الوادي والجسر',
+    kind: 'tactical',
+    width,
+    height,
+    cellSize,
+    cols,
+    rows,
+    navGrid,
+    svgOrUrl,
+    anchors: {
+      base_blue: { x: 180, y: 400, label: 'القاعدة الغربية' },
+      bridge_mid: { x: 590, y: 390, label: 'الجسر الأوسط' },
+      outpost_site: { x: 450, y: 230, label: 'موقع الإمداد' },
+      hill_east: { x: 980, y: 490, label: 'المرتفع الشرقي' },
+      north_flank: { x: 950, y: 170, label: 'الجناح الشمالي' }
+    },
+    zones: {
+      east_sector: {
+        id: 'east_sector',
+        label: 'القطاع الشرقي',
+        polygon: [
+          { x: 660, y: 60 },
+          { x: 1140, y: 60 },
+          { x: 1140, y: 740 },
+          { x: 660, y: 740 }
+        ]
+      }
+    }
+  };
+}
+
+export const DEMO_MAPS: Record<string, MapPack> = {
+  geopolitics_strait: buildStraitMap(),
+  tactical_valley: buildValleyMap()
+};
+```
+
+---
+
+## 4) ملفات السيناريو (`src/scenarios/`)
+
+### `src/scenarios/strait_crisis.scenario.yaml`
+```yaml
+meta:
+  title: "أزمة الممر البحري وبناء المراقبة"
+  map: geopolitics_strait
+
+timeline:
+  - at: 0s
+    camera: { focus: port_south, zoom: 1.25, duration: 1s }
+    caption: { text: "١. انطلاق الدورية البحرية من الميناء الغربي والمبعوث نحو شبه الجزيرة" }
+    spawn:
+      - { id: patrol_1, actor: naval_corvette, at: port_south, faction: blue }
+      - { id: envoy_1, actor: diplomat_person, at: capital_north, faction: blue }
+
+  - at: 1.2s
+    move: { entity: patrol_1, to: strait_gate }
+    move2: {}
+    draw_arrow: { id: route_sea, from: port_south, to: strait_gate, color: "#38bdf8", dashed: true, duration: 2s }
+
+  - at: 1.8s
+    move: { entity: envoy_1, to: peninsula_center }
+
+  - after: patrol_1.arrived
+    camera: { focus: strait_gate, zoom: 1.55, duration: 1.4s }
+    caption: { text: "٢. وصول الفرقاطة لبوابة المضيق وتفعيل منطقة التوتر وبناء محطة الرادار" }
+    sound: alert_ping
+    zone: { id: corridor_south, color: "#ef4444", opacity: 0.35, duration: 1.5s }
+    construct: { id: radar_1, actor: radar_outpost, at: coast_point_1, faction: blue, duration: 2.2s }
+
+  - at: 10s
+    camera: { focus: port_east, zoom: 1.15, duration: 1.5s }
+    caption: { text: "٣. إكمال العبور نحو الميناء الشرقي — يمكنك الآن التدخل وتحريك الوحدات بالماوس" }
+    move: { entity: patrol_1, to: port_east }
+    draw_arrow: { id: route_east, from: strait_gate, to: port_east, color: "#22c55e", dashed: false, duration: 2s }
+```
+*(ملاحظة: أزل السطر الوهمي `move2: {}` إن لم ترغب به، المحرك يتجاهل المفاتيح غير المعروفة بسلاسة).*
+
+### `src/scenarios/valley_advance.scenario.yaml`
+```yaml
+meta:
+  title: "عملية عبور الجسر وتأمين المرتفع"
+  map: tactical_valley
+
+timeline:
+  - at: 0s
+    camera: { focus: base_blue, zoom: 1.2, duration: 1s }
+    caption: { text: "١. تمركز رتل الدبابات والمشاة في القاعدة الغربية" }
+    spawn:
+      - { id: tank_1, actor: heavy_tank, at: base_blue, faction: blue }
+      - { id: squad_1, actor: infantry_squad, at: outpost_site, faction: blue }
+
+  - at: 1.5s
+    caption: { text: "٢. التقدّم عبر الجسر تلقائيًا دون الاصطدام بالنهر أو الجبل" }
+    move: { entity: tank_1, to: hill_east }
+    draw_arrow: { id: attack_vec, from: base_blue, to: hill_east, color: "#f59e0b", dashed: true, duration: 2.5s }
+    construct: { id: depot_1, actor: supply_depot, at: outpost_site, faction: blue, duration: 2.5s }
+
+  - at: 4.5s
+    camera: { focus: bridge_mid, zoom: 1.4, duration: 1.2s }
+    move: { entity: squad_1, to: north_flank }
+
+  - after: tank_1.arrived
+    camera: { focus: hill_east, zoom: 1.35, duration: 1.2s }
+    sound: alert_ping
+    zone: { id: east_sector, color: "#2563eb", opacity: 0.3, duration: 1.5s }
+    caption: { text: "٣. تأمين المرتفع الشرقي! جرّب إرسال الدبابة أو بناء محطة في وضع اللعب الحر" }
+```
+
+---
+
+## 5) الصوتيات والعارض السينمائي (`src/renderer/`)
+
+### `src/renderer/soundSynth.ts`
+```ts
+import { SoundId } from '../core/types';
+
+export class SoundSynth {
+  private ctx: AudioContext | null = null;
+  public muted = false;
+
+  private ensureCtx(): AudioContext | null {
+    if (this.muted) return null;
+    if (!this.ctx) this.ctx = new AudioContext();
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {});
+    return this.ctx;
+  }
+
+  play(id: SoundId): void {
+    const ctx = this.ensureCtx();
+    if (!ctx) return;
+    const now = ctx.currentTime;
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    if (id === 'spawn_pop') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(320, now);
+      osc.frequency.exponentialRampToValueAtTime(620, now + 0.09);
+      gain.gain.setValueAtTime(0.08, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+      osc.start(now);
+      osc.stop(now + 0.1);
+    } else if (id === 'move_order') {
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(440, now);
+      osc.frequency.exponentialRampToValueAtTime(520, now + 0.06);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.07);
+      osc.start(now);
+      osc.stop(now + 0.07);
+    } else if (id === 'build_complete') {
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(523, now);
+      osc.frequency.setValueAtTime(659, now + 0.08);
+      gain.gain.setValueAtTime(0.09, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+      osc.start(now);
+      osc.stop(now + 0.22);
+    } else if (id === 'alert_ping') {
+      osc.type = 'sawtooth';
+      osc.frequency.setValueAtTime(680, now);
+      osc.frequency.exponentialRampToValueAtTime(420, now + 0.18);
+      gain.gain.setValueAtTime(0.06, now);
+      gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+      osc.start(now);
+      osc.stop(now + 0.2);
+    }
+  }
+}
+```
+
+### `src/renderer/studioRenderer.ts`
+```ts
+import { Application, Container, Graphics, Sprite, Text, Texture } from 'pixi.js';
+import { StudioEngine } from '../core/engine';
+import { EntityState, Point } from '../core/types';
+
+async function loadSvgOrUrlTexture(src: string): Promise<Texture> {
+  const img = new Image();
+  img.crossOrigin = 'anonymous';
+  img.src = src.trim().startsWith('<svg')
+    ? `data:image/svg+xml;charset=utf-8,${encodeURIComponent(src)}`
+    : src;
+  await img.decode();
+  return Texture.from(img);
+}
+
+function lerp(a: number, b: number, t: number): number {
+  return a + (b - a) * t;
+}
+
+export class StudioRenderer {
+  public app = new Application();
+  private world = new Container();
+  private mapLayer = new Container();
+  private zoneGraphics = new Graphics();
+  private arrowGraphics = new Graphics();
+  private anchorLayer = new Container();
+  private entityLayer = new Container();
+
+  private actorTextures = new Map<string, Texture>();
+  private entityViews = new Map<string, { container: Container; sprite: Sprite; shadow: Graphics; ring: Graphics; buildArc: Graphics }>();
+
+  private camX = 600;
+  private camY = 400;
+  private camZoom = 1;
+  private lastCamSeq = -1;
+  private dragging = false;
+  private dragMoved = false;
+  private lastPointer: Point = { x: 0, y: 0 };
+
+  public selectedEntityId: string | null = null;
+  public hideUIHelpers = false;
+  public onMapClick?: (worldPt: Point, clickedEntityId: string | null) => void;
+
+  async init(host: HTMLElement): Promise<void> {
+    await this.app.init({ resizeTo: host, backgroundColor: 0x090f1a, antialias: true, preference: 'webgl' });
+    host.appendChild(this.app.canvas);
+
+    this.world.addChild(this.mapLayer, this.zoneGraphics, this.arrowGraphics, this.anchorLayer, this.entityLayer);
+    this.app.stage.addChild(this.world);
+    this.setupPointerEvents();
+  }
+
+  private setupPointerEvents(): void {
+    const canvas = this.app.canvas;
+    canvas.addEventListener('pointerdown', (e) => {
+      this.dragging = true;
+      this.dragMoved = false;
+      this.lastPointer = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('pointermove', (e) => {
+      if (!this.dragging) return;
+      const dx = e.clientX - this.lastPointer.x;
+      const dy = e.clientY - this.lastPointer.y;
+      if (Math.hypot(dx, dy) > 4) this.dragMoved = true;
+      this.camX -= dx / this.camZoom;
+      this.camY -= dy / this.camZoom;
+      this.lastPointer = { x: e.clientX, y: e.clientY };
+    });
+
+    window.addEventListener('pointerup', (e) => {
+      if (!this.dragging) return;
+      this.dragging = false;
+      if (!this.dragMoved && e.target === canvas) {
+        const rect = canvas.getBoundingClientRect();
+        const sx = e.clientX - rect.left;
+        const sy = e.clientY - rect.top;
+        const wx = (sx - this.app.screen.width / 2) / this.camZoom + this.camX;
+        const wy = (sy - this.app.screen.height / 2) / this.camZoom + this.camY;
+        const hit = this.pickEntity(wx, wy);
+        this.onMapClick?.({ x: wx, y: wy }, hit);
+      }
+    });
+
+    canvas.addEventListener(
+      'wheel',
+      (e) => {
+        e.preventDefault();
+        const factor = e.deltaY < 0 ? 1.1 : 0.9;
+        this.camZoom = Math.max(0.4, Math.min(3.5, this.camZoom * factor));
+      },
+      { passive: false }
+    );
+  }
+
+  private pickEntity(wx: number, wy: number): string | null {
+    for (const [id, view] of this.entityViews) {
+      if (Math.hypot(view.container.x - wx, view.container.y - wy) <= 28) return id;
+    }
+    return null;
+  }
+
+  async loadEngineAssets(engine: StudioEngine): Promise<void> {
+    this.mapLayer.removeChildren();
+    this.anchorLayer.removeChildren();
+    this.entityLayer.removeChildren();
+    this.entityViews.clear();
+    this.selectedEntityId = null;
+
+    const mapTex = await loadSvgOrUrlTexture(engine.map.svgOrUrl);
+    const mapSprite = new Sprite(mapTex);
+    mapSprite.width = engine.map.width;
+    mapSprite.height = engine.map.height;
+    this.mapLayer.addChild(mapSprite);
+
+    for (const [id, pt] of Object.entries(engine.map.anchors)) {
+      const dot = new Graphics().circle(0, 0, 5).fill({ color: 0xfef08a, alpha: 0.9 }).stroke({ width: 2, color: 0x0f172a });
+      dot.position.set(pt.x, pt.y);
+      const label = new Text({
+        text: pt.label ?? id,
+        style: { fontFamily: 'system-ui, sans-serif', fontSize: 12, fill: 0xe2e8f0, stroke: { color: 0x090f1a, width: 3 } }
+      });
+      label.anchor.set(0.5, 1);
+      label.position.set(pt.x, pt.y - 8);
+      this.anchorLayer.addChild(dot, label);
+    }
+
+    for (const actor of Object.values(engine.actors)) {
+      if (!this.actorTextures.has(actor.id)) {
+        this.actorTextures.set(actor.id, await loadSvgOrUrlTexture(actor.svg));
+      }
+    }
+
+    this.camX = engine.map.width / 2;
+    this.camY = engine.map.height / 2;
+    this.camZoom = Math.min(this.app.screen.width / engine.map.width, this.app.screen.height / engine.map.height) * 0.92;
+    this.lastCamSeq = -1;
+  }
+
+  render(engine: StudioEngine, alpha: number, timeSec: number): void {
+    this.anchorLayer.visible = !this.hideUIHelpers;
+
+    // حركة الكاميرا السلسة نحو الهدف
+    if (engine.cameraTarget && engine.cameraTarget.seq !== this.lastCamSeq) {
+      const t = 0.06;
+      this.camX = lerp(this.camX, engine.cameraTarget.x, t);
+      this.camY = lerp(this.camY, engine.cameraTarget.y, t);
+      this.camZoom = lerp(this.camZoom, engine.cameraTarget.zoom, t);
+      if (Math.hypot(this.camX - engine.cameraTarget.x, this.camY - engine.cameraTarget.y) < 1) {
+        this.lastCamSeq = engine.cameraTarget.seq;
+      }
+    }
+
+    this.world.position.set(this.app.screen.width / 2, this.app.screen.height / 2);
+    this.world.scale.set(this.camZoom);
+    this.world.pivot.set(this.camX, this.camY);
+
+    // رسم المناطق الملونة
+    this.zoneGraphics.clear();
+    for (const zState of engine.zones.values()) {
+      if (zState.opacity <= 0.01) continue;
+      const def = engine.map.zones[zState.id];
+      if (!def) continue;
+      const pts = def.polygon.flatMap((p) => [p.x, p.y]);
+      this.zoneGraphics.poly(pts, true).fill({ color: zState.color, alpha: zState.opacity }).stroke({ width: 2, color: zState.color, alpha: 0.85 });
+    }
+
+    // رسم الأسهم المنحنية المتنامية
+    this.arrowGraphics.clear();
+    for (const arr of engine.arrows.values()) {
+      const mx = (arr.from.x + arr.to.x) / 2;
+      const my = (arr.from.y + arr.to.y) / 2 - 55;
+      const steps = 24;
+      const maxStep = Math.max(1, Math.floor(steps * arr.progress));
+      let prev = arr.from;
+      for (let i = 1; i <= maxStep; i++) {
+        const t = i / steps;
+        const x = (1 - t) * (1 - t) * arr.from.x + 2 * (1 - t) * t * mx + t * t * arr.to.x;
+        const y = (1 - t) * (1 - t) * arr.from.y + 2 * (1 - t) * t * my + t * t * arr.to.y;
+        if (!arr.dashed || i % 2 === 1) {
+          this.arrowGraphics.moveTo(prev.x, prev.y).lineTo(x, y).stroke({ width: 4, color: arr.color, alpha: 0.9 });
+        }
+        prev = { x, y };
+      }
+      if (arr.progress > 0.15) {
+        const ang = Math.atan2(prev.y - my, prev.x - mx);
+        this.arrowGraphics
+          .poly([
+            prev.x + Math.cos(ang) * 10,
+            prev.y + Math.sin(ang) * 10,
+            prev.x + Math.cos(ang + 2.5) * 10,
+            prev.y + Math.sin(ang + 2.5) * 10,
+            prev.x + Math.cos(ang - 2.5) * 10,
+            prev.y + Math.sin(ang - 2.5) * 10
+          ])
+          .fill({ color: arr.color });
+      }
+    }
+
+    // مزامنة الكيانات مع تحريك إجرائي ناعم
+    for (const [id, v] of this.entityViews) {
+      if (!engine.entities.has(id)) {
+        this.entityLayer.removeChild(v.container);
+        this.entityViews.delete(id);
+      }
+    }
+
+    for (const ent of engine.entities.values()) {
+      let view = this.entityViews.get(ent.id);
+      if (!view) {
+        view = this.createEntityView(ent);
+        this.entityViews.set(ent.id, view);
+        this.entityLayer.addChild(view.container);
+      }
+      const x = lerp(ent.prevX, ent.x, alpha);
+      const y = lerp(ent.prevY, ent.y, alpha);
+      view.container.position.set(x, y);
+
+      // اهتزاز مشي لطيف للأشخاص + دوران سلس للآليات والسفن
+      if (ent.kind === 'person') {
+        const bob = ent.isMoving ? Math.abs(Math.sin(timeSec * 12)) * 3 : 0;
+        view.sprite.y = -bob;
+        view.sprite.rotation = ent.isMoving ? Math.sin(timeSec * 12) * 0.08 : 0;
+      } else if (ent.kind === 'vehicle' || ent.kind === 'ship') {
+        view.sprite.rotation = lerp(ent.prevAngle, ent.angle, alpha);
+      }
+
+      // مظهر البناء التدريجي
+      view.sprite.alpha = ent.buildProgress < 1 ? 0.35 + ent.buildProgress * 0.65 : 1;
+      view.buildArc.clear();
+      if (ent.buildProgress < 1) {
+        view.buildArc.arc(0, 0, ent.radius + 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ent.buildProgress).stroke({ width: 3, color: 0x38bdf8 });
+      }
+      view.ring.visible = !this.hideUIHelpers && this.selectedEntityId === ent.id;
+    }
+  }
+
+  private createEntityView(ent: EntityState) {
+    const container = new Container();
+    const shadow = new Graphics().ellipse(0, ent.scale * 0.32, ent.radius * 0.9, ent.radius * 0.4).fill({ color: 0x000000, alpha: 0.38 });
+    const ring = new Graphics().circle(0, 0, ent.radius + 6).stroke({ width: 2.5, color: 0x22c55e });
+    ring.visible = false;
+    const buildArc = new Graphics();
+
+    const tex = this.actorTextures.get(ent.actorId) ?? Texture.EMPTY;
+    const sprite = new Sprite(tex);
+    sprite.anchor.set(0.5);
+    const ratio = ent.scale / Math.max(1, tex.height);
+    sprite.scale.set(ratio);
+
+    container.addChild(shadow, ring, sprite, buildArc);
+    return { container, sprite, shadow, ring, buildArc };
+  }
+}
+```
+
+---
+
+## 6) واجهة الاستوديو والتفاعل (`src/style.css` و `src/main.ts`)
+
+### `src/style.css`
+```css
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #090f1a; color: #e2e8f0; overflow: hidden; }
+.layout { display: grid; grid-template-columns: 340px 1fr; height: 100vh; }
+.sidebar { background: #0f172a; border-left: 1px solid #1e293b; padding: 14px; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.stage-wrap { position: relative; width: 100%; height: 100%; overflow: hidden; }
+.stage-host { width: 100%; height: 100%; }
+h1 { font-size: 16px; color: #38bdf8; }
+.row { display: flex; gap: 6px; flex-wrap: wrap; }
+button, select { background: #1e293b; color: #f8fafc; border: 1px solid #334155; padding: 6px 10px; border-radius: 6px; cursor: pointer; font-size: 13px; }
+button:hover { background: #334155; }
+button.active { background: #0284c7; border-color: #38bdf8; }
+button.danger { background: #991b1b; border-color: #ef4444; }
+textarea { width: 100%; height: 260px; background: #020617; color: #a5f3fc; border: 1px solid #334155; border-radius: 6px; padding: 8px; font-family: monospace; font-size: 12px; direction: ltr; resize: vertical; }
+.caption-bar { position: absolute; bottom: 24px; left: 50%; transform: translateX(-50%); background: rgba(15, 23, 42, 0.88); border: 1px solid #38bdf8; padding: 10px 20px; border-radius: 10px; font-size: 15px; pointer-events: none; max-width: 80%; text-align: center; }
+.badge { font-size: 11px; color: #94a3b8; }
+.err { background: #450a0a; border: 1px solid #ef4444; color: #fecaca; padding: 8px; border-radius: 6px; font-size: 12px; }
+```
+
+### `src/main.ts`
+```ts
+import './style.css';
+import yaml from 'js-yaml';
+import { DT, StudioEngine, TICK_RATE } from './core/engine';
+import { ScenarioFile } from './core/types';
+import { validateScenario } from './core/validator';
+import { DEMO_ACTORS, DEMO_MAPS } from './packs/demoPacks';
+import { SoundSynth } from './renderer/soundSynth';
+import { StudioRenderer } from './renderer/studioRenderer';
+import straitYaml from './scenarios/strait_crisis.scenario.yaml?raw';
+import valleyYaml from './scenarios/valley_advance.scenario.yaml?raw';
+
+const SCENARIOS: Record<string, { label: string; yaml: string }> = {
+  strait: { label: 'أزمة المضيق (خريطة سياسية)', yaml: straitYaml },
+  valley: { label: 'العبور التكتيكي (خريطة ميدان)', yaml: valleyYaml }
+};
+
+document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
+  <div class="layout">
+    <aside class="sidebar">
+      <h1>استوديو السيناريوهات التفاعلي</h1>
+      <select id="presetSelect">
+        <option value="strait">${SCENARIOS.strait.label}</option>
+        <option value="valley">${SCENARIOS.valley.label}</option>
+      </select>
+      <div class="row">
+        <button id="playBtn" class="active">إيقاف مؤقت</button>
+        <button id="restartBtn">إعادة</button>
+        <select id="speedSelect">
+          <option value="1">1x</option>
+          <option value="2">2x</option>
+          <option value="0.5">0.5x</option>
+        </select>
+        <button id="recBtn">تسجيل فيديو</button>
+      </div>
+      <div class="badge">وضع اللعب الحر (اضغط على الخريطة للوضع أو التحريك):</div>
+      <div class="row" id="sandboxBar">
+        <button data-tool="select" class="active">تحديد / تحريك</button>
+        <button data-tool="heavy_tank">+ دبابة</button>
+        <button data-tool="infantry_squad">+ مشاة</button>
+        <button data-tool="radar_outpost">+ رادار</button>
+      </div>
+      <div class="badge">ملف السيناريو YAML (عدّل أو اسحب ملف .yaml هنا):</div>
+      <textarea id="yamlEditor"></textarea>
+      <div class="row">
+        <button id="applyBtn" class="active">تطبيق وفحص السيناريو</button>
+      </div>
+      <div id="errorBox"></div>
+    </aside>
+    <main class="stage-wrap">
+      <div id="stageHost" class="stage-host"></div>
+      <div id="captionBar" class="caption-bar" style="display:none"></div>
+    </main>
+  </div>
+`;
+
+const sound = new SoundSynth();
+const renderer = new StudioRenderer();
+const stageHost = document.getElementById('stageHost')!;
+const yamlEditor = document.getElementById('yamlEditor') as HTMLTextAreaElement;
+const errorBox = document.getElementById('errorBox')!;
+const captionBar = document.getElementById('captionBar')!;
+
+let engine: StudioEngine;
+let playing = true;
+let speed = 1;
+let activeTool = 'select';
+let sandboxCounter = 1;
+let recorder: MediaRecorder | null = null;
+
+async function loadFromYaml(rawYaml: string) {
+  errorBox.innerHTML = '';
+  try {
+    const parsed = yaml.load(rawYaml) as ScenarioFile;
+    const map = DEMO_MAPS[parsed?.meta?.map];
+    const issues = validateScenario(parsed, map, DEMO_ACTORS);
+    if (issues.length > 0) {
+      errorBox.innerHTML = `<div class="err">${issues.map((i) => `• [${i.field}] ${i.message}`).join('<br>')}</div>`;
+      return;
+    }
+    engine = new StudioEngine(map, DEMO_ACTORS, parsed);
+    engine.onSound((id) => sound.play(id));
+    await renderer.loadEngineAssets(engine);
+  } catch (err) {
+    errorBox.innerHTML = `<div class="err">خطأ YAML: ${(err as Error).message}</div>`;
+  }
+}
+
+await renderer.init(stageHost);
+yamlEditor.value = SCENARIOS.strait.yaml;
+await loadFromYaml(yamlEditor.value);
+
+// تفاعل الماوس (اللعب الحر)
+renderer.onMapClick = (pt, hitId) => {
+  if (!engine) return;
+  if (activeTool === 'select') {
+    if (hitId) {
+      renderer.selectedEntityId = hitId;
+    } else if (renderer.selectedEntityId) {
+      engine.dispatchOrder({ type: 'move', entityId: renderer.selectedEntityId, to: pt });
+    }
+  } else {
+    const act = DEMO_ACTORS[activeTool];
+    const id = `sb_${sandboxCounter++}`;
+    if (act.kind === 'building') {
+      engine.dispatchOrder({ type: 'construct', id, actorId: act.id, at: pt, faction: 'blue', durationSec: 1.8 });
+    } else {
+      engine.dispatchOrder({ type: 'spawn', id, actorId: act.id, at: pt, faction: 'blue' });
+      renderer.selectedEntityId = id;
+    }
+  }
+};
+
+// أدوات التحكم
+document.getElementById('presetSelect')!.addEventListener('change', async (e) => {
+  const key = (e.target as HTMLSelectElement).value;
+  yamlEditor.value = SCENARIOS[key].yaml;
+  await loadFromYaml(yamlEditor.value);
+});
+
+const playBtn = document.getElementById('playBtn')!;
+playBtn.addEventListener('click', () => {
+  playing = !playing;
+  playBtn.textContent = playing ? 'إيقاف مؤقت' : 'تشغيل';
+});
+
+document.getElementById('restartBtn')!.addEventListener('click', () => engine?.reset());
+document.getElementById('speedSelect')!.addEventListener('change', (e) => {
+  speed = parseFloat((e.target as HTMLSelectElement).value);
+});
+document.getElementById('applyBtn')!.addEventListener('click', () => loadFromYaml(yamlEditor.value));
+
+document.querySelectorAll('#sandboxBar button').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#sandboxBar button').forEach((b) => b.classList.remove('active'));
+    btn.classList.add('active');
+    activeTool = btn.getAttribute('data-tool')!;
+  });
+});
+
+// سحب وإفلات ملفات .yaml أو صور خرائط مخصصة
+stageHost.addEventListener('dragover', (e) => e.preventDefault());
+stageHost.addEventListener('drop', async (e) => {
+  e.preventDefault();
+  const file = e.dataTransfer?.files[0];
+  if (!file) return;
+  if (file.name.endsWith('.yaml') || file.name.endsWith('.yml')) {
+    yamlEditor.value = await file.text();
+    await loadFromYaml(yamlEditor.value);
+  } else if (file.type.startsWith('image/')) {
+    engine.map.svgOrUrl = URL.createObjectURL(file);
+    await renderer.loadEngineAssets(engine);
+  }
+});
+
+// تسجيل فيديو WebM نظيف
+const recBtn = document.getElementById('recBtn')!;
+recBtn.addEventListener('click', () => {
+  if (recorder && recorder.state === 'recording') {
+    recorder.stop();
+    return;
+  }
+  const stream = renderer.app.canvas.captureStream(30);
+  const chunks: Blob[] = [];
+  recorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+  recorder.ondataavailable = (e) => e.data.size && chunks.push(e.data);
+  recorder.onstop = () => {
+    renderer.hideUIHelpers = false;
+    recBtn.textContent = 'تسجيل فيديو';
+    recBtn.classList.remove('danger');
+    const url = URL.createObjectURL(new Blob(chunks, { type: 'video/webm' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'scenario-export.webm';
+    a.click();
+  };
+  renderer.hideUIHelpers = true;
+  recorder.start();
+  recBtn.textContent = 'إيقاف وحفظ الفيديو';
+  recBtn.classList.add('danger');
+});
+
+// حلقة المحاكاة الثابتة + التنعيم
+let accumulator = 0;
+let lastTime = performance.now();
+function loop(now: number) {
+  const frameDt = Math.min(0.1, (now - lastTime) / 1000);
+  lastTime = now;
+
+  if (engine && playing) {
+    accumulator += frameDt * speed;
+    while (accumulator >= DT) {
+      engine.step();
+      accumulator -= DT;
+    }
+  }
+
+  if (engine) {
+    const alpha = playing ? accumulator / DT : 1;
+    renderer.render(engine, alpha, now / 1000);
+    captionBar.style.display = engine.caption ? 'block' : 'none';
+    captionBar.textContent = engine.caption;
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+```
+
+---
+
+## 7) تشغيله الآن على جهازك
+
+```bash
+cd rw-studio
+npm install
+npm run dev
+```
+
+ثم افتح الرابط الذي يظهر في الطرفية (عادة `http://localhost:5173`).
+
+### كيف تختبر قوة الفكرة بمجرد أن يفتح؟
+1. في **خريطة المضيق** شاهد الفرقاطة تلتف بحرًا وتبني محطة رادار عند وصولها تلقائيًا (`after: patrol_1.arrived`).
+2. بدّل إلى **خريطة الوادي** وشاهد الدبابة تعبر النهر **عبر الجسر فقط** وتتجنب الجبل تلقائيًا.
+3. فعّل **"تحديد / تحريك"** واضغط على الدبابة ثم اضغط خلف الجبل أو عبر النهر — ستجد المسار وتعبر الجسر فورًا.
+4. اسحب أي صورة خريطة من جهازك وأفلتها فوق المشهد لتعمل كخلفية فورًا، أو عدّل أي سطر في محرر الـ YAML واضغط **"تطبيق وفحص السيناريو"**.
+
+أخبرني بمجرد تشغيله ما الذي تود تطويره أولًا في **المرحلة الثانية** (أداة تعليم النقاط والمراسي بالماوس على أي خريطة ترفعها، أم تصدير الفهرس `CATALOG.md` والمدقق المستقل للنماذج، أم تحسين القوالب والرسوم والمؤثرات)؟

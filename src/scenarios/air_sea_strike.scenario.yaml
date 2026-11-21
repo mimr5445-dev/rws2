@@ -1,0 +1,117 @@
+meta:
+  title: عمليات حاملة الطائرات والقصف الجوي
+  map: geopolitics_strait
+  duration_hint: 18s
+
+timeline:
+  - at: "0s"
+    camera:
+      focus: strait_gate
+      zoom: 0.94
+      duration: "1.0s"
+    caption:
+      text: "تحرك مجموعة حاملة الطائرات والمدمرة لتأمين المضيق والمنشآت الحيوية"
+    spawn:
+      - id: carrier_1
+        actor: aircraft_carrier
+        at: port_south
+        faction: blue
+      - id: destroyer_1
+        actor: destroyer_ship
+        at: { x: 255, y: 585 }
+        faction: blue
+      - id: base_blue
+        actor: military_base
+        at: capital_north
+        faction: blue
+      - id: jet_1
+        actor: fighter_jet
+        at: capital_north
+        faction: blue
+      - id: heli_1
+        actor: attack_heli
+        at: { x: 235, y: 245 }
+        faction: blue
+      - id: oil_red
+        actor: oil_facility
+        at: { x: 1010, y: 185 }
+        faction: red
+      - id: sam_red
+        actor: ballistic_launcher
+        at: peninsula_center
+        faction: red
+
+  - at: "1.0s"
+    move:
+      entity: carrier_1
+      to: strait_gate
+    callout:
+      id: c_fleet
+      target: carrier_1
+      text: "حاملة الطائرات"
+      color: "#38bdf8"
+      duration: "6.5s"
+
+  - at: "1.5s"
+    move:
+      entity: destroyer_1
+      to: { x: 700, y: 525 }
+
+  - at: "1.7s"
+    move:
+      entity: heli_1
+      to: coast_point_1
+
+  - at: "3.0s"
+    camera:
+      focus: { x: 760, y: 310 }
+      zoom: 1.04
+      duration: "1.4s"
+    caption:
+      text: "إقلاع المقاتلة الحربية لتنفيذ ضربة جوية دقيقة على المنشأة النفطية"
+    callout:
+      id: c_oil
+      target: oil_red
+      text: "منشأة نفطية مستهدفة"
+      color: "#ef4444"
+      duration: "3.8s"
+    strike:
+      attacker: jet_1
+      mode: airstrike
+      to: { x: 1010, y: 185 }
+      radius: 72
+      color: "#ef4444"
+
+  - at: "7.8s"
+    camera:
+      focus: { x: 560, y: 340 }
+      zoom: 1.04
+      duration: "1.4s"
+    caption:
+      text: "إطلاق صاروخ بالستي دقيق لتدمير بطارية الصواريخ في شبه الجزيرة"
+    spawn:
+      - id: launcher_blue
+        actor: ballistic_launcher
+        at: { x: 225, y: 180 }
+        faction: blue
+    strike:
+      attacker: launcher_blue
+      mode: missile
+      to: peninsula_center
+      radius: 85
+      color: "#f97316"
+
+  - at: "11.0s"
+    caption:
+      text: "إنشاء قاعدة عسكرية متقدمة وتأمين الممر البحري بالكامل"
+    construct:
+      id: forward_base
+      actor: military_base
+      at: coast_point_1
+      faction: blue
+      duration: "2s"
+    zone:
+      id: corridor_south
+      color: "#38bdf8"
+      opacity: 0.28
+      duration: "1.4s"
